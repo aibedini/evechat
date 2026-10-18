@@ -1,0 +1,13 @@
+[Unit]
+Description=Remind the team about unanswered EveChat conversations
+Documentation=https://github.com/aibedini/evechat/blob/main/docs/EMAIL.md
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=120
+Persistent=true
+Unit=evechat@missed.service
+
+[Install]
+WantedBy=timers.target

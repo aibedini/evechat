@@ -15,7 +15,7 @@ import (
 var commandNames = map[string]bool{
 	"serve": true, "setup": true, "doctor": true, "migrate": true, "backup": true,
 	"restore": true, "update": true, "user": true, "project": true, "key": true,
-	"healthcheck": true, "version": true,
+	"healthcheck": true, "version": true, "job": true,
 }
 
 // splitCommand finds the subcommand anywhere in args so that both
@@ -102,6 +102,8 @@ func main() {
 		runKeyCommand(rest)
 	case "healthcheck":
 		runHealthcheckCommand(rest)
+	case "job":
+		runJobCommand(rest)
 	}
 }
 

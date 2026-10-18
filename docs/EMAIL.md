@@ -61,3 +61,24 @@ message has a plain-text alternative. To customise, edit the template functions
 
 If SMTP is disabled the endpoint still returns `200` but logs a warning; the
 operator can reset a password locally with `evechat user password`.
+
+## Scheduled jobs
+
+The two background emails run as one-shot systemd units, not inside the server:
+
+```bash
+sudo cp deploy/systemd/evechat@.service /etc/systemd/system/
+sudo cp deploy/systemd/evechat-digest.timer deploy/systemd/evechat-missed.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now evechat-digest.timer evechat-missed.timer
+```
+
+| Job | Schedule | Command |
+|---|---|---|
+| missed chat reminder | every 15 min | `evechat job missed --older-than 10m` |
+| daily digest | 08:00 local | `evechat job digest` |
+
+Both read recipients from `notification_email`, `alert_email` or
+`support_email` project settings and fall back to active admins/superadmins.
+Without a configured SMTP host they log and exit 0, so a timer never fails
+noisily on a mail-less install. `--quiet` keeps cron logs clean.

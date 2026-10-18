@@ -116,6 +116,9 @@ func (c *Client) Check(ctx context.Context) error {
 	return nil
 }
 
+// Enabled reports whether a server host is configured.
+func (c *Client) Enabled() bool { return c != nil && c.cfg.Host != "" }
+
 // Send delivers a multipart (HTML + plain text) message.
 func (c *Client) Send(ctx context.Context, to, subject, htmlBody, textBody string) error {
 	if c.cfg.Host == "" {

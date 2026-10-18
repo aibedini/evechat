@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily EveChat support digest
+Documentation=https://github.com/aibedini/evechat/blob/main/docs/EMAIL.md
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+RandomizedDelaySec=300
+Persistent=true
+Unit=evechat@digest.service
+
+[Install]
+WantedBy=timers.target

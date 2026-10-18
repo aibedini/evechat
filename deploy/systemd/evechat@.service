@@ -1,0 +1,18 @@
+[Unit]
+Description=EveChat scheduled job (%i)
+Documentation=https://github.com/aibedini/evechat/blob/main/docs/EMAIL.md
+After=evechat.service
+Wants=evechat.service
+ConditionPathExists=/opt/evechat/evechat
+
+[Service]
+Type=oneshot
+User=evechat
+Group=evechat
+WorkingDirectory=/opt/evechat
+EnvironmentFile=/opt/evechat/.env
+ExecStart=/opt/evechat/evechat --config /opt/evechat/evechat.yaml job %i
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=300

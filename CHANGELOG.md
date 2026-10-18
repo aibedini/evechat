@@ -50,6 +50,8 @@ Phase 2: install, release, operations, typography and hardening.
   audited automatically through an auth-middleware hook.
 - **Dark mode**, keyboard/focus/screen-reader pass, reduced-motion support and a
   contrast budget check in CI.
+- **Scheduled email jobs**: `evechat job missed|digest` with systemd timers for
+  unanswered-chat reminders and a daily support summary.
 - **Offline bundle** (`make bundle` + `install-offline.sh`), mirrored installs
   and an external-URL audit that fails the build if any CDN dependency appears.
 - **Documentation**: Persian README, install/config/API/widget/routing/telegram/
