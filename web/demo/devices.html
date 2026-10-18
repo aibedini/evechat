@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EveChat — پیش‌تنظیم دستگاه‌ها</title>
+  <link rel="stylesheet" href="/demo/demo.css" />
+  <style>
+    .wall { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .device { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 10px; }
+    .device header { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .device iframe { width: 100%; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+  </style>
+</head>
+<body>
+<header class="demo-bar">
+  <strong>⚡ دمو</strong>
+  <a href="/demo">فروشگاه</a>
+  <a href="/demo/split">تأخیر</a>
+  <a href="/demo/devices">دستگاه‌ها</a>
+  <a href="/demo/events">رویدادها</a>
+  <a href="/demo/test">تست ساده</a>
+  <span class="grow"></span>
+  <span class="grow"></span><span style="opacity:.7">۸ پیش‌تنظیم زنده</span>
+</header>
+<main>
+  <h1>پیش‌تنظیم دستگاه‌ها</h1>
+  <p>هر قاب یک نمونه‌ی واقعی از ویجت با اندازه‌ی همان دستگاه است؛ پنج نقطه‌ی شکست (۳۶۰/۴۸۰/۷۶۸/۱۰۲۴/۱۴۴۰) اینجا با هم دیده می‌شوند.</p>
+  <div class="wall">
+    <div class="device"><header><span>Galaxy S8</span><span>360px</span></header>
+        <iframe title="Galaxy S8" style="height:260px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>iPhone SE</span><span>375px</span></header>
+        <iframe title="iPhone SE" style="height:260px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>iPhone 12</span><span>390px</span></header>
+        <iframe title="iPhone 12" style="height:260px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>Pixel 5</span><span>393px</span></header>
+        <iframe title="Pixel 5" style="height:260px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>iPad Mini</span><span>768px</span></header>
+        <iframe title="iPad Mini" style="height:320px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>iPad Pro</span><span>820px</span></header>
+        <iframe title="iPad Pro" style="height:340px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>Laptop</span><span>1024px</span></header>
+        <iframe title="Laptop" style="height:340px" src="/demo/test"></iframe></div>
+    <div class="device"><header><span>Desktop</span><span>1440px</span></header>
+        <iframe title="Desktop" style="height:340px" src="/demo/test"></iframe></div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EveChat — دمو</title>
+  <link rel="stylesheet" href="/demo/demo.css" />
+  <style>
+    /* A deliberately hostile stylesheet: it attacks generic selectors that a
+       non-isolated widget would inherit. The real widget lives in a shadow
+       root, so none of this reaches it. */
+    .hero { background: linear-gradient(120deg, #1e293b, #334155); color: #f8fafc; padding: 42px 24px; border-radius: 20px; }
+    .hero h1 { margin: 0 0 6px; font-size: 26px; }
+    .products { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin-top: 20px; }
+    .product { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    .product h3 { margin: 0 0 4px; font-size: 15px; }
+    .price { color: var(--brand); font-weight: 700; }
+    .buy { border: 0; border-radius: 10px; padding: 8px 14px; background: var(--brand); color: #fff; font-family: inherit; cursor: pointer; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .chips span { background: #e2e8f0; border-radius: 999px; padding: 2px 10px; font-size: 11px; }
+    #hostile-css[disabled] { display: none; }
+  </style>
+</head>
+<body>
+<header class="demo-bar">
+  <strong>⚡ دمو</strong>
+  <a href="/demo">فروشگاه</a>
+  <a href="/demo/split">تأخیر</a>
+  <a href="/demo/devices">دستگاه‌ها</a>
+  <a href="/demo/events">رویدادها</a>
+  <a href="/demo/test">تست ساده</a>
+  <span class="grow"></span>
+  <button data-action="interference">تداخل CSS</button>
+  <button data-action="theme">تم</button>
+  <button data-action="locale">زبان</button>
+  <button data-action="position">موقعیت</button>
+  <button data-action="font">فونت</button>
+  <button data-action="eve">هویت EVE</button>
+  <button data-action="offline">قطعی اینترنت</button>
+  <button data-action="ws">WS مسدود</button>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>فروشگاه ساختگی</h1>
+    <p>صفحه‌ی نمونه برای آزمودن ویجت روی یک سایت واقعی. نوار بالا هر گزینه را با پارامتر URL بازسازی می‌کند؛ «تداخل CSS» یک استایل خصمانه را روشن می‌کند تا نشان دهد Shadow DOM ویجت را از آن جدا می‌کند.</p>
+  </div>
+
+  <div class="products">
+    <div class="product"><h3>هدفون بی‌سیم</h3><div class="price">450٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+    <div class="product"><h3>کیبورد مکانیکی</h3><div class="price">900٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+    <div class="product"><h3>ماوس ارگونومیک</h3><div class="price">1350٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+    <div class="product"><h3>پایه لپ‌تاپ</h3><div class="price">1800٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+    <div class="product"><h3>وب‌کم ۴K</h3><div class="price">2250٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+    <div class="product"><h3>هاب USB-C</h3><div class="price">2700٬000 تومان</div><div class="chips"><span>موجود</span><span>ارسال رایگان</span></div><p><button class="buy" data-action="open">خرید و پشتیبانی</button></p></div>
+  </div>
+
+  <h2>سناریوهای شبیه‌سازی</h2>
+  <div class="chips" style="gap:8px">
+    <button class="buy" data-action="open">۱. باز کردن</button>
+    <button class="buy" data-action="close">۲. بستن</button>
+    <button class="buy" data-action="send">۳. ارسال پیام</button>
+    <button class="buy" data-action="identify">۴. شناسایی کاربر</button>
+    <button class="buy" data-action="variable">۵. متغیر (plan)</button>
+    <button class="buy" data-action="offline">۶. حالت آفلاین</button>
+    <button class="buy" data-action="ws">۷. مسدودسازی WebSocket</button>
+  </div>
+
+  <h2>لاگ رویدادها</h2>
+  <div id="demo-log" class="demo-log"></div>
+  <p>تأخیر آخرین پیام: <b id="demo-latency">—</b></p>
+</main>
+
+<style id="hostile-css" disabled>
+  button { background: #ef4444 !important; border-radius: 0 !important; color: #000 !important; }
+  * { font-family: Impact, "Comic Sans MS", cursive !important; }
+  .ec-panel, .ec-msgs, .ec-launcher { display: none !important; }
+  body { background: #fde68a !important; }
+</style>
+
+<script>window.__DEMO__ = { apiUrl: "__EVECHAT_API_URL__", projectKey: "__EVECHAT_PROJECT_KEY__" };</script>
+<script src="/demo/demo.js"></script>
+</body>
+</html>

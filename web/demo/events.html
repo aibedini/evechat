@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EveChat — کنسول رویدادها</title>
+  <link rel="stylesheet" href="/demo/demo.css" />
+  <style>
+    .console { background: #0f172a; color: #e2e8f0; border-radius: 16px; padding: 14px; min-height: 320px; max-height: 60vh; overflow-y: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; direction: ltr; text-align: left; }
+    .log-line { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+    .log-time { color: #64748b; }
+    .log-kind { color: #38bdf8; }
+  </style>
+</head>
+<body>
+<header class="demo-bar">
+  <strong>⚡ دمو</strong>
+  <a href="/demo">فروشگاه</a>
+  <a href="/demo/split">تأخیر</a>
+  <a href="/demo/devices">دستگاه‌ها</a>
+  <a href="/demo/events">رویدادها</a>
+  <a href="/demo/test">تست ساده</a>
+  <span class="grow"></span>
+  <button data-action="open">باز کردن</button>
+  <button data-action="send">ارسال</button>
+  <button data-action="clear">پاک کردن</button>
+</header>
+<main>
+  <h1>کنسول پروتکل</h1>
+  <p>رویدادهای عمومی ویجت با زمان دقیق. برای دیدن فریم‌های خام شبکه، تب Network مرورگر را باز کنید؛ این کنسول همان چیزی است که یک یکپارچه‌ساز از API بیرونی می‌بیند.</p>
+  <div id="demo-log" class="console"></div>
+  <h2>وضعیت لحظه‌ای</h2>
+  <pre id="demo-state" class="console" style="min-height:160px"></pre>
+</main>
+<script>window.__DEMO__ = { apiUrl: "__EVECHAT_API_URL__", projectKey: "__EVECHAT_PROJECT_KEY__" };</script>
+<script src="/demo/demo.js"></script>
+</body>
+</html>

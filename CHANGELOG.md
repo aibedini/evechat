@@ -6,50 +6,66 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- **Responsive pass (TASK 37/38)**: `breakpoints.css` is the single source of
-  truth (360/480/768/1024/1440, mirrored in the widget and the setup wizard);
-  the widget handles the mobile keyboard with `visualViewport`
-  (`--ec-vh`/`--ec-vv`/`--ec-kb`), `dvh` with a `vh` fallback, safe-area insets
-  and body scroll lock; the dashboard sidebar becomes an off-canvas drawer, the
-  inbox collapses to one column with a back button, tables become cards and the
-  ticket kanban becomes tabs under `md`; the setup wizard gets a mobile pass.
-- **`/wallboard`**: read-only big screen behind a rotating project token. The
-  payload is aggregates only — no message content, no visitor identity.
-- **`responsive.spec.ts`**: 8 devices x 2 orientations x 2 themes = 32
-  combinations with 8 assertions each, plus a dashboard drawer test, in CI.
-
-### Added
-- **Channels (two-way webhooks)**: `channels`, `channel_identities` and
-  `webhook_inbox` tables; ten REST routes plus the public
-  `POST /api/channels/{id}/inbound`; JSONPath input mapping with a live
-  preview; ten-step ingestion (secret, rate limit, parse, map, identity,
-  conversation, encrypted message, room broadcast, outbound ack, inspector);
-  outbound delivery with the `0s/30s/2m/10m/1h/6h` ladder and a system message
-  when it gives up; a channels page with the curl generator and inbox
-  inspector. Bodies are scrubbed and kept 48 hours. See `docs/CHANNELS.fa.md`.
-- **Behaviour suite**: `web/e2e` with seven Playwright scenarios covering
-  BUG-0…BUG-4, run by the `behavior` job in `.github/workflows/e2e.yml`.
-
-### Fixed
-- The widget panel rendered **transparent** when a project palette omitted a
-  colour: the palette spread carried explicit `undefined` values that overrode
-  the defaults, producing `background: undefined`.
-
-### Changed
-- Widget gzip budget raised from 12 KB to 16 KB. The 12 KB figure came from the
-  first plan and was arbitrary: the widget now ships three transports, an
-  offline outbox, a shadow-DOM UI and two locales, and the responsiveness work
-  (visualViewport keyboard handling, safe-area insets) needs several hundred
-  more bytes. The build, the Makefile, the release workflow and the
-  `doctor` widget.size check all enforce 16384; the assert is not relaxed,
-  only the number. Terser was tightened in the same change (`compact` output,
-  extra compress passes) which freed 52 bytes of headroom.
-
 ### Planned
 - Redis broker behind the `redis` build tag for multi-node deployments.
 - Billing provider adapters (interface only today).
 - Realtime translation of agent messages.
+
+
+## [1.2.0] - 2026-10-18
+
+### Added
+- **Channels (two-way webhooks)**: `channels`, `channel_identities` and
+  `webhook_inbox`; ten REST routes plus the public
+  `POST /api/channels/{id}/inbound`; JSONPath input mapping with a live
+  preview; ten-step ingestion; outbound acks on the `0s/30s/2m/10m/1h/6h`
+  ladder with a system message when it gives up; a channels page with a curl
+  generator and an inspector; bodies are scrubbed and kept 48 hours
+  (`docs/CHANNELS.fa.md`, `docs/WEBHOOKS.fa.md`).
+- **Responsive pass**: `breakpoints.css` (360/480/768/1024/1440) as the single
+  source of truth; the widget handles the mobile keyboard with
+  `visualViewport`, `dvh`, safe-area insets and body scroll lock; the dashboard
+  gets an off-canvas sidebar, a single-column inbox, table→cards and
+  kanban→tabs; the setup wizard gets a mobile pass (`docs/RESPONSIVE.md`).
+- **/wallboard**: read-only big screen behind a rotating project token with an
+  aggregates-only payload (`docs/WALLBOARD.fa.md`).
+- **Demo pages**: `/demo`, `/demo/test`, `/demo/split`, `/demo/devices`,
+  `/demo/events`, local-only, with a control bar, network simulations and a
+  hostile-CSS isolation test (`docs/DEMO.fa.md`).
+- **Tests**: 46 Playwright tests (behaviour + responsive + demo) in CI; Go tests
+  for channels, JSONPath, claim/activation, resume, SSRF, audit redaction, PII
+  masking, backup/restore decryption and update rollback.
+
+### Fixed
+- **Security**: `chimw.RealIP` trusted `X-Forwarded-For` for every caller, which
+  let anyone choose their own IP (rate limits, IP blocklist, the setup wizard's
+  loopback check, `/demo*`). Removed; `middleware.ClientIP` honours proxy
+  headers only with `trust_proxy`, first hop only.
+- **BUG-1**: a resolved conversation swallowed the next visitor message, and
+  `visitor_sessions.active_conv_id` was never set for WebSocket-created
+  conversations.
+- **BUG-2**: assignment and activation were the same thing, so routing's
+  capacity fallback moved every new conversation to `active`. `Assign` no
+  longer activates; new atomic `claim` route; the first agent reply activates.
+- **BUG-3/4**: agents were not in the room of a pending conversation, so live
+  messages and typing indicators never reached the dashboard; typing now has a
+  server-side TTL; the dashboard patches the query cache instead of refetching
+  on every frame and no longer refetches on window focus.
+- **BUG-0**: the widget survives blocked `localStorage`/`indexedDB` with an
+  in-memory fallback; the manual test page moved to `/demo/test`.
+- The widget panel rendered **transparent** when a project palette omitted a
+  colour (an explicit `undefined` overrode the defaults).
+- **doctor**: the missing 24th check was `net.outbound`; `net.publicurl` now
+  compares the health `instance_id` with the local installation.
+
+### Changed
+- Widget gzip budget raised from 12 KB to 16 KB. The 12 KB figure was arbitrary;
+  the widget ships three transports, an offline outbox, a shadow-DOM UI, two
+  locales and now keyboard/responsive handling. Terser was tightened first
+  (`compact` output, extra compress passes) which freed 52 bytes. The cap is
+  enforced — only the number changed — in the Makefile, `scripts/build.sh`, CI
+  and `doctor`.
+
 
 ## [1.1.3] - 2026-10-18
 

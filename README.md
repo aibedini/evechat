@@ -17,7 +17,8 @@ The installer verifies checksums, creates a system user, generates secrets, inst
 - **Dashboard:** React 18 + Vite + Tailwind, Persian RTL, Jalali dates, realtime inbox, visitors, tickets Kanban, knowledge base, audit/health/security settings, dark mode.
 - **Channels:** two-way webhooks with JSONPath input mapping, a retry ladder for outbound acks, a 48-hour scrubbed inspector and a curl generator (`docs/CHANNELS.fa.md`).
 - **Ops:** `evechat setup|doctor|backup|restore|update|key|user|project`, Prometheus metrics, proof-of-work abuse protection, SMTP + password reset, audit log, offline install bundle, multi-arch container image.
-- **Tests:** `go test ./...` plus a Playwright behaviour suite in `web/e2e` that runs in CI (`docs/E2E.md`).
+- **Responsive:** one breakpoint scale (360/480/768/1024/1440) for the widget, dashboard and setup wizard; the widget handles the mobile keyboard with `visualViewport` (`docs/RESPONSIVE.md`). A `/wallboard` big screen sits behind a read-only token (`docs/WALLBOARD.fa.md`), and local-only demo pages live under `/demo*` (`docs/DEMO.fa.md`).
+- **Tests:** `go test ./...` plus 46 Playwright tests (behaviour, responsive, demo) in `web/e2e` that run in CI (`docs/E2E.md`).
 
 ## Install paths
 

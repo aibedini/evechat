@@ -22,6 +22,19 @@ EveChat برای تیم‌های پشتیبانی فارسی طراحی شده �
 
 تصاویر بیشتر در [docs/screenshots](docs/screenshots)؛ برای بازتولید: `node scripts/screenshots.mjs`.
 
+**تازه در ۱.۲.۰:**
+
+- **کانال‌ها (وبهوک دوطرفه):** دریافت پیام از CRM/تلگرام/درگاه پیامک با نگاشت
+  JSONPath، ده گام پردازش، نردبان retry برای خروجی و بازرس ۴۸ ساعته —
+  [docs/CHANNELS.fa.md](docs/CHANNELS.fa.md).
+- **واکنش‌گرایی کامل:** ویجت با رفع باگ کیبورد موبایل (`visualViewport`)،
+  `dvh` و `safe-area`؛ پنل با سایدبار کشویی، صندوق تک‌ستونی، جدول→کارت و
+  Kanban→تب — [docs/RESPONSIVE.md](docs/RESPONSIVE.md).
+- **صفحه‌ی نمایش (`/wallboard`):** تلویزیون اتاق پشتیبانی با توکن فقط‌خواندنی و
+  بدون محتوای پیام — [docs/WALLBOARD.fa.md](docs/WALLBOARD.fa.md).
+- **صفحه‌های دمو:** `/demo`، `/demo/split`، `/demo/devices`، `/demo/events`
+  (فقط لوکال) — [docs/DEMO.fa.md](docs/DEMO.fa.md).
+
 ---
 
 ## نصب در ۶۰ ثانیه
