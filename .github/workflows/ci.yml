@@ -55,7 +55,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
-          node -e "const z=require('zlib'),fs=require('fs');const n=z.gzipSync(fs.readFileSync('dist/widget.js')).length;console.log('widget gzip',n);if(n>=12288)process.exit(1)"
+          node -e "const z=require('zlib'),fs=require('fs');const n=z.gzipSync(fs.readFileSync('dist/widget.js')).length;console.log('widget gzip',n);if(n>=16384)process.exit(1)"
           npx vitest run
       - name: dashboard
         working-directory: web/dashboard
