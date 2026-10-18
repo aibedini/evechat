@@ -45,6 +45,9 @@ func New(d Deps) http.Handler {
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.Blocklist(d.H.State.Blocklist(), d.Cfg.Server.TrustProxy))
 	r.Use(middleware.Instrument(d.H.MetricsReg))
+	// Audit every authenticated mutation; handlers may add richer entries.
+	middleware.MutationHook = d.H.AuditMutation
+
 	r.Use(chimw.Compress(5))
 	r.Use(middleware.SetupGate(d.H.State))
 

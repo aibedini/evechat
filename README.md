@@ -45,6 +45,8 @@ curl -s localhost:3000/metrics | head
 - [docs/ROUTING.fa.md](docs/ROUTING.fa.md) — rule cookbook
 - [docs/TELEGRAM.fa.md](docs/TELEGRAM.fa.md) — bot setup
 - [docs/UPGRADE.md](docs/UPGRADE.md) and [docs/RELEASING.md](docs/RELEASING.md)
+- [docs/AUDIT.md](docs/AUDIT.md), [docs/MONITORING.md](docs/MONITORING.md), [docs/EMAIL.md](docs/EMAIL.md)
+- [docs/OFFLINE.md](docs/OFFLINE.md), [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md), [docs/SECURITY-HARDENING.md](docs/SECURITY-HARDENING.md)
 
 OpenAPI: served at `/api/openapi.yaml`, browsable at `/api/docs`.
 

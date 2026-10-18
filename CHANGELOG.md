@@ -46,7 +46,8 @@ Phase 2: install, release, operations, typography and hardening.
 - **SMTP channel** with Persian RTL templates and a password-reset flow
   (`/forgot`, `/reset`).
 - **Audit log** (`audit_log`, `/api/v1/audit`, dashboard activity page) with
-  secret redaction and retention pruning.
+  secret redaction and retention pruning; every authenticated mutation is
+  audited automatically through an auth-middleware hook.
 - **Dark mode**, keyboard/focus/screen-reader pass, reduced-motion support and a
   contrast budget check in CI.
 - **Offline bundle** (`make bundle` + `install-offline.sh`), mirrored installs

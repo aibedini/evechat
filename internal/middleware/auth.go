@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"net/http"
 	"strings"
 	"time"
@@ -143,6 +144,11 @@ func BearerToken(r *http.Request) string {
 	return strings.TrimSpace(r.URL.Query().Get("token"))
 }
 
+// MutationHook is installed by the router to record authenticated mutations
+// (POST/PUT/PATCH/DELETE) together with the caller identity. It runs after the
+// inner handler, with the response status.
+var MutationHook func(r *http.Request, c *Claims, status int)
+
 // Auth authenticates dashboard requests.
 func Auth(m *TokenManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -157,7 +163,14 @@ func Auth(m *TokenManager) func(http.Handler) http.Handler {
 				apierr.Write(w, apierr.Unauthorized("نشست شما منقضی شده است"))
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(WithClaims(r.Context(), claims)))
+			ww := chimw.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(ww, r.WithContext(WithClaims(r.Context(), claims)))
+			if MutationHook != nil {
+				switch r.Method {
+				case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+					MutationHook(r, claims, ww.Status())
+				}
+			}
 		})
 	}
 }
