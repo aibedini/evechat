@@ -6,33 +6,62 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     labels: [dependencies, go]
+    groups:
+      go-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: "/web/widget"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     labels: [dependencies, widget]
+    groups:
+      widget-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: "/web/dashboard"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     labels: [dependencies, dashboard]
+    groups:
+      dashboard-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: "/web/setup"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     labels: [dependencies, setup]
+    groups:
+      setup-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     labels: [dependencies, ci]
+    groups:
+      actions-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
     labels: [dependencies, docker]
+    groups:
+      docker-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

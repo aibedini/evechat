@@ -54,7 +54,7 @@ jobs:
           node scripts/smoke.mjs http://127.0.0.1:3210 "$KEY" ci@evechat.local "CiPassword123!"
       - name: logs on failure
         if: failure()
-        run: tail -n 100 "$RUNNER_TEMP/evechat/server.log" || true
+        run: tail -n 100 "$RUNNER_TEMP/evechat/server.log"
 
   backup-restore:
     runs-on: ubuntu-latest
@@ -76,8 +76,13 @@ jobs:
           ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz" --dry-run
           rm -f "$DIR/data/evechat.db"*
           ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz"
-          # doctor exits 2 when it only finds warnings; the JSON decides.
-          ./evechat --config "$DIR/evechat.yaml" doctor --json > doctor.json || true
+          # doctor exits 2 when it only finds warnings; accept 0/2 and let the
+          # JSON decide, but never ignore any other exit code.
+          set +e
+          ./evechat --config "$DIR/evechat.yaml" doctor --json > doctor.json
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
           node -e "const r=require('./doctor.json'); console.log(r.summary); if (r.summary.fail > 0) process.exit(1)"
 
   offline-bundle:

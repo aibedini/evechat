@@ -95,14 +95,14 @@ jobs:
           build darwin arm64 arm64 ""
           build windows amd64 amd64 ".exe"
           (cd dist && sha256sum * > checksums.txt)
-          cp embed/widget/widget.js dist/widget.js || true
+          cp embed/widget/widget.js dist/widget.js
           ls -lh dist
 
       - name: release notes
         run: |
           tag="${{ steps.v.outputs.tag }}"
           ver="${tag#v}"
-          awk -v t="$ver" 'BEGIN{p=0} /^## \[/{ if (index($0, "[" t "]") > 0) {p=1; next} else if (p) exit } p' CHANGELOG.md > notes.md || true
+          awk -v t="$ver" 'BEGIN{p=0} /^## \[/{ if (index($0, "[" t "]") > 0) {p=1; next} else if (p) exit } p' CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then echo "Release $tag" > notes.md; fi
 
       - uses: softprops/action-gh-release@v2
@@ -139,3 +139,21 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             VERSION=${{ steps.v.outputs.tag }}
+
+      - name: verify multi-arch manifest
+        run: |
+          set -euo pipefail
+          tag="${{ steps.v.outputs.tag }}"
+          ver="${tag#v}"
+          docker buildx imagetools inspect "ghcr.io/aibedini/evechat:${ver}" --format '{{json .Manifest}}' > manifest.json
+          node -e '
+            const m = require("./manifest.json");
+            const platforms = (m.manifests || []).map((x) => `${x.platform.os}/${x.platform.architecture}`);
+            console.log("published platforms:", platforms.join(", "));
+            for (const want of ["linux/amd64", "linux/arm64"]) {
+              if (!platforms.includes(want)) {
+                console.error("missing platform:", want);
+                process.exit(1);
+              }
+            }
+          '

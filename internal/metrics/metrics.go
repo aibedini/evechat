@@ -273,23 +273,44 @@ func (r *Registry) snapshotLocked() snapshotData {
 		s.kinds[name] = kind
 		s.names = append(s.names, name)
 	}
+	// Deep copy: the snapshot is rendered after the mutex is released, so it
+	// must never alias a map that writers can still mutate (that caused a
+	// "concurrent map iteration and map write" fatal under load).
 	for name, m := range r.counters {
-		s.counters[name] = m
+		cp := make(map[string]*series, len(m))
+		for key, ser := range m {
+			c := *ser
+			c.labels = copyLabels(ser.labels)
+			cp[key] = &c
+		}
+		s.counters[name] = cp
 	}
 	for name, m := range r.gauges {
-		s.gauges[name] = m
-		for key := range m {
+		cp := make(map[string]float64, len(m))
+		for key, v := range m {
+			cp[key] = v
 			s.gaugeKeys[name] = append(s.gaugeKeys[name], key)
 		}
 		sort.Strings(s.gaugeKeys[name])
+		s.gauges[name] = cp
 	}
-	if r.gaugeLabels != nil {
-		for name, m := range r.gaugeLabels {
-			s.gaugeLabels[name] = m
+	for name, m := range r.gaugeLabels {
+		cp := make(map[string]map[string]string, len(m))
+		for key, labels := range m {
+			cp[key] = copyLabels(labels)
 		}
+		s.gaugeLabels[name] = cp
 	}
 	for name, m := range r.hists {
-		s.hists[name] = m
+		cp := make(map[string]*histogram, len(m))
+		for key, h := range m {
+			c := *h
+			c.counts = append([]uint64(nil), h.counts...)
+			c.buckets = append([]float64(nil), h.buckets...)
+			c.labels = copyLabels(h.labels)
+			cp[key] = &c
+		}
+		s.hists[name] = cp
 	}
 	sort.Strings(s.names)
 	return s

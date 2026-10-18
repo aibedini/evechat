@@ -19,7 +19,7 @@ jobs:
           cache: true
       - name: gofmt
         run: |
-          out="$(gofmt -l . | grep -v '^web/' || true)"
+          out="$(gofmt -l . | awk '$0 !~ /^web\//')"
           if [ -n "$out" ]; then
             echo "$out"
             echo "::error::gofmt needs to run on the files above"
@@ -28,7 +28,6 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -race -count=1
       - name: govulncheck
-        continue-on-error: true
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./... | tee vuln.txt
       - name: vulnerability summary
         if: always()
