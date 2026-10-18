@@ -24,6 +24,8 @@ node_modules/
 web/widget/dist/
 web/dashboard/dist/
 web/dashboard/.vite/
+web/e2e/test-results/
+web/e2e/playwright-report/
 
 # Editors / OS
 .DS_Store
