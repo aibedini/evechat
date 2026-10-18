@@ -472,6 +472,12 @@ main() {
     "$DIR/evechat" --config "$DIR/evechat.yaml" migrate >/dev/null 2>&1 || die "مهاجرت‌ها ناموفق بودند"
   fi
   run_setup
+  # The running server caches setup state, so restart it after the wizard ran
+  # out-of-process; without this the instance stays gated behind /setup.
+  if [ "$NO_SYSTEMD" != "1" ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl restart evechat
+    wait_health
+  fi
   [ -n "${TMPDIR_INSTALL:-}" ] && rm -rf "$TMPDIR_INSTALL" || true
 }
 

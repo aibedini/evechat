@@ -13,17 +13,30 @@ RUN cd web/dashboard && npm ci --no-audit --no-fund
 COPY web/dashboard web/dashboard
 RUN cd web/dashboard && npm run build
 
-# ---- stage 2: static Go binary ----
-FROM golang:1.23-alpine AS build
+COPY web/setup/package*.json web/setup/
+RUN cd web/setup && npm ci --no-audit --no-fund
+COPY web/setup web/setup
+RUN cd web/setup && npm run build
+
+# ---- stage 2: static Go binary (cross-compiles via TARGETOS/TARGETARCH) ----
+FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS build
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_DATE=unknown
 RUN apk add --no-cache ca-certificates git
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/embed/dashboard ./embed/dashboard
+COPY --from=web /src/embed/setup ./embed/setup
 COPY --from=web /src/web/widget/dist/widget.js ./embed/widget/widget.js
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags "-s -w -X main.version=${VERSION:-docker}" -o /out/evechat ./cmd/evechat
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
+    -o /out/evechat ./cmd/evechat
 
 # ---- stage 3: runtime ----
 FROM gcr.io/distroless/static-debian12:nonroot
