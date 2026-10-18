@@ -49,7 +49,22 @@ export class Outbox {
   }
 
   private tx(mode: IDBTransactionMode): Promise<IDBObjectStore | null> {
-    return this.open().then((db) => (db ? db.transaction(STORE, mode).objectStore(STORE) : null));
+    return this.open()
+      .then((db) => (db ? db.transaction(STORE, mode).objectStore(STORE) : null))
+      // A closed or corrupted database throws here; fall back instead of
+      // rejecting and losing the message that triggered the call.
+      .catch(() => null);
+  }
+
+  private putFallback(item: OutboxItem): void {
+    this.fallback = this.fallback.filter((x) => x.client_message_id !== item.client_message_id);
+    this.fallback.push(item);
+    this.persistFallback();
+  }
+
+  private removeFallback(id: string): void {
+    this.fallback = this.fallback.filter((x) => x.client_message_id !== id);
+    this.persistFallback();
   }
 
   private persistFallback(): void {
@@ -63,16 +78,19 @@ export class Outbox {
   async put(item: OutboxItem): Promise<void> {
     const store = await this.tx("readwrite");
     if (!store) {
-      this.fallback = this.fallback.filter((x) => x.client_message_id !== item.client_message_id);
-      this.fallback.push(item);
-      this.persistFallback();
+      this.putFallback(item);
       return;
     }
-    await new Promise<void>((resolve) => {
-      const req = store.put(item);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve();
+    const stored = await new Promise<boolean>((resolve) => {
+      try {
+        const req = store.put(item);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
     });
+    if (!stored) this.putFallback(item);
   }
 
   async all(): Promise<OutboxItem[]> {
@@ -98,15 +116,19 @@ export class Outbox {
   async remove(id: string): Promise<void> {
     const store = await this.tx("readwrite");
     if (!store) {
-      this.fallback = this.fallback.filter((x) => x.client_message_id !== id);
-      this.persistFallback();
+      this.removeFallback(id);
       return;
     }
-    await new Promise<void>((resolve) => {
-      const req = store.delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = () => resolve();
+    const removed = await new Promise<boolean>((resolve) => {
+      try {
+        const req = store.delete(id);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch {
+        resolve(false);
+      }
     });
+    if (!removed) this.removeFallback(id);
   }
 
   async pending(): Promise<OutboxItem[]> {

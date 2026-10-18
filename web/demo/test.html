@@ -22,6 +22,7 @@
       align-items: center;
       gap: 12px;
       font-size: 14px;
+      flex-wrap: wrap;
     }
     header strong { font-size: 15px; }
     header span { color: #94a3b8; font-size: 12px; }
@@ -65,32 +66,52 @@
     button.ghost { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
     ul { margin: 8px 0; padding-inline-start: 20px; font-size: 13.5px; }
     .hint { font-size: 12px; color: #64748b; }
+    .warn {
+      margin: 0 0 18px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid #fca5a5;
+      background: #fef2f2;
+      color: #7f1d1d;
+      font-size: 13px;
+    }
+    .warn code { display: inline; padding: 2px 6px; font-size: 12px; }
   </style>
 </head>
 <body>
   <header>
     <strong>⚡ EveChat</strong>
-    <span>صفحه تست ویجت — سرور: http://127.0.0.1:3000</span>
+    <span>صفحه تست ویجت — سرور: __EVECHAT_API_URL__</span>
   </header>
 
   <main>
+    <div id="file-warning" class="warn" hidden>
+      <strong>این صفحه با <code>file://</code> باز شده است.</strong>
+      ویجت به همان مبدأ سرور نیاز دارد؛ از روی فایل باز کردن صفحه، درخواست‌های
+      <code>fetch</code> و WebSocket را نامعتبر می‌کند. آدرس درست:
+      <code>__EVECHAT_API_URL__/demo/test</code>
+    </div>
+
     <h1>صفحه نمونه برای تست ویجت</h1>
-    <p class="lead">ویجت پایین-چپ صفحه است. روی دکمهٔ آبی کلیک کنید و یک پیام بفرستید؛ سپس در پنل پاسخ دهید.</p>
+    <p class="lead">
+      ویجت پایین صفحه است. روی دکمهٔ آبی کلیک کنید و یک پیام بفرستید؛ سپس در پنل پاسخ دهید.
+      این صفحه فقط از loopback سرو می‌شود؛ از هر آدرس دیگری پاسخ 404 می‌گیرید.
+    </p>
 
     <div class="card">
       <h2>دسترسی‌ها</h2>
       <div class="grid">
         <div>
           <div class="hint">پنل مدیریت</div>
-          <code>http://127.0.0.1:3000/login</code>
+          <code>__EVECHAT_API_URL__/login</code>
         </div>
         <div>
-          <div class="hint">ایمیل / رمز</div>
-          <code>admin@evechat.local / (رمز را از چت بگیرید)</code>
+          <div class="hint">کلید پروژه (تزریق‌شده از سرور)</div>
+          <code id="project-key">__EVECHAT_PROJECT_KEY__</code>
         </div>
         <div>
-          <div class="hint">کلید پروژه</div>
-          <code>pk_01m55ahxtwd2316s3ba63my22k</code>
+          <div class="hint">این صفحه</div>
+          <code>__EVECHAT_API_URL__/demo/test</code>
         </div>
       </div>
     </div>
@@ -99,8 +120,8 @@
       <h2>کد جاسازی در سایت خودتان</h2>
       <pre>&lt;script&gt;
   window.EveChat = {
-    projectKey: "pk_01m55ahxtwd2316s3ba63my22k",
-    apiUrl: "http://127.0.0.1:3000",
+    projectKey: "__EVECHAT_PROJECT_KEY__",
+    apiUrl: "__EVECHAT_API_URL__",
     visitor: {
       name: "کاربر تست",
       mobile: "09121234567",
@@ -110,7 +131,7 @@
     locale: "fa"
   };
 &lt;/script&gt;
-&lt;script async src="http://127.0.0.1:3000/widget.js"&lt;/script&gt;</pre>
+&lt;script async src="__EVECHAT_API_URL__/widget.js"&lt;/script&gt;</pre>
     </div>
 
     <div class="card">
@@ -119,7 +140,7 @@
       <button onclick="ec('close')" class="ghost">بستن</button>
       <button onclick="ec('send','سلام! این یک پیام تست است')" class="ghost">ارسال پیام تست</button>
       <button onclick="ec('identify',{name:'مهمان جدید',mobile:'09120000000',metadata:{eve_reseller_id:'reseller_test'}})" class="ghost">شناسایی کاربر</button>
-      <button onclick="location.href='http://127.0.0.1:3000/inbox'" class="ghost">رفتن به صندوق گفتگو</button>
+      <button onclick="location.href='__EVECHAT_API_URL__/inbox'" class="ghost">رفتن به صندوق گفتگو</button>
       <p class="hint">پیام‌ها به‌صورت realtime با WebSocket می‌رسند؛ اگر شبکه محدود بود، ویجت خودکار به SSE و سپس long-poll سوییچ می‌کند.</p>
     </div>
 
@@ -128,7 +149,7 @@
       <ul>
         <li>ارسال پیام از ویجت → مشاهده در صندوق گفتگو → پاسخ کارشناس → دریافت realtime در ویجت.</li>
         <li>تنظیمات ← امنیت: تغییر سختی PoW و افزودن IP به لیست سیاه، سپس تست مسدود شدن.</li>
-        <li>تنظیمات ← سلامت سیستم: اجرای «بررسی مجدد» و مشاهدهٔ ۲۳ بررسی.</li>
+        <li>تنظیمات ← سلامت سیستم: اجرای «بررسی مجدد» و مشاهدهٔ ۲۴ بررسی.</li>
         <li>تنظیمات ← گزارش فعالیت: مشاهدهٔ رکوردهای حسابرسی خودکار پس از هر تغییر.</li>
         <li>حالت تاریک: کلید 🌙/☀️ پایین سایدبار.</li>
         <li>بازیابی رمز: صفحهٔ ورود ← «رمز عبور را فراموش کرده‌اید؟» (با SMTP خاموش، پیام موفقیت نمایشی است).</li>
@@ -137,20 +158,37 @@
   </main>
 
   <script>
-    window.EveChat = {
-      projectKey: "pk_01m55ahxtwd2316s3ba63my22k",
-      apiUrl: "http://127.0.0.1:3000",
-      visitor: {
-        name: "کاربر تست",
-        mobile: "09121234567",
-        metadata: { eve_user_id: "u_test_1", utm_source: "local-test" }
-      },
-      theme: "auto",
-      locale: "fa",
-      position: "bottom-left"
-    };
-    window.ec = window.ec || function () { (ec.q = ec.q || []).push(arguments); };
+    (function () {
+      // Opening this file directly cannot work: the widget needs the server
+      // origin for fetch and WebSocket. Say so instead of failing silently.
+      if (location.protocol === "file:") {
+        document.getElementById("file-warning").hidden = false;
+        return;
+      }
+      var apiUrl = "__EVECHAT_API_URL__";
+      var projectKey = "__EVECHAT_PROJECT_KEY__";
+      if (apiUrl.indexOf("__") === 0 || projectKey.indexOf("__") === 0) {
+        document.getElementById("file-warning").hidden = false;
+        return;
+      }
+      window.EveChat = {
+        projectKey: projectKey,
+        apiUrl: apiUrl,
+        visitor: {
+          name: "کاربر تست",
+          mobile: "09121234567",
+          metadata: { eve_user_id: "u_test_1", utm_source: "local-test" }
+        },
+        theme: "auto",
+        locale: "fa",
+        position: "bottom-left"
+      };
+      window.ec = window.ec || function () { (ec.q = ec.q || []).push(arguments); };
+      var script = document.createElement("script");
+      script.async = true;
+      script.src = apiUrl + "/widget.js";
+      document.body.appendChild(script);
+    })();
   </script>
-  <script async src="http://127.0.0.1:3000/widget.js"></script>
 </body>
 </html>

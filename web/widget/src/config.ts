@@ -20,27 +20,65 @@ export function resolveConfig(): HostConfig | null {
   };
 }
 
-export function storageGet(key: string): string | null {
+/**
+ * Last-resort storage. Private-mode browsers, blocked third-party storage and
+ * `file://` pages all throw on localStorage; without this the widget would lose
+ * the session token and the outbox the moment the page reloads.
+ */
+const memoryStore = new Map<string, string>();
+let localStorageUsable: boolean | null = null;
+
+function localStorageOrNull(): Storage | null {
+  if (localStorageUsable === false) return null;
   try {
-    return window.localStorage.getItem(key);
+    const storage = window.localStorage;
+    if (!storage) return null;
+    if (localStorageUsable === null) {
+      // Touching the object is not enough; some browsers only throw on write.
+      storage.setItem("evechat:probe", "1");
+      storage.removeItem("evechat:probe");
+      localStorageUsable = true;
+    }
+    return storage;
   } catch {
+    localStorageUsable = false;
     return null;
   }
 }
 
+export function storageGet(key: string): string | null {
+  const storage = localStorageOrNull();
+  if (storage) {
+    try {
+      return storage.getItem(key);
+    } catch {
+      localStorageUsable = false;
+    }
+  }
+  const value = memoryStore.get(key);
+  return value === undefined ? null : value;
+}
+
 export function storageSet(key: string, value: string): void {
+  // Mirror into memory first so a storage failure never loses the value.
+  memoryStore.set(key, value);
+  const storage = localStorageOrNull();
+  if (!storage) return;
   try {
-    window.localStorage.setItem(key, value);
+    storage.setItem(key, value);
   } catch {
-    /* private mode: drafts simply do not persist */
+    localStorageUsable = false;
   }
 }
 
 export function storageRemove(key: string): void {
+  memoryStore.delete(key);
+  const storage = localStorageOrNull();
+  if (!storage) return;
   try {
-    window.localStorage.removeItem(key);
+    storage.removeItem(key);
   } catch {
-    /* ignore */
+    localStorageUsable = false;
   }
 }
 

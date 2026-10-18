@@ -73,6 +73,10 @@ func New(d Deps) http.Handler {
 	r.Get("/api/openapi.yaml", openAPIHandler)
 	r.Get("/api/docs", docsHandler)
 
+	// Manual widget test page. handlers.DemoTest rejects every non-loopback
+	// caller with a 404, so it never exposes a project key on a public host.
+	r.Get("/demo/test", wrap(d.H.DemoTest))
+
 	// ---- widget (open CORS, project-key auth) ----
 	r.Group(func(r chi.Router) {
 		r.Use(openCORS)
