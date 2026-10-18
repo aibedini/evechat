@@ -60,7 +60,14 @@ export function useWebSocket(handlers: RealtimeHandlers = {}) {
   useEffect(() => {
     const unsubs: Array<() => void> = [];
     unsubs.push(
-      agentSocket.on("__open", () => setState("open")),
+      agentSocket.on("__open", () => {
+        setState("open");
+        // The socket has no replay buffer: refresh once on (re)connect so a
+        // frame sent during the handshake is not lost until the next poll.
+        qc.invalidateQueries({ queryKey: ["conversations"] });
+        qc.invalidateQueries({ queryKey: ["conversation"] });
+        qc.invalidateQueries({ queryKey: ["messages"] });
+      }),
       agentSocket.on("conversation.new", (data: any) => {
         qc.invalidateQueries({ queryKey: ["conversations"] });
         handlersRef.current.onConversation?.(data?.id, data?.status);
@@ -140,6 +147,14 @@ export function useAgentEvents(handlers: RealtimeHandlers = {}) {
       }),
       agentSocket.on("visitor.typing.stop", (data: any) => {
         if (data?.conversation_id) handlersRef.current.onTypingStop?.(data.conversation_id);
+      })
+    );
+    unsubs.push(
+      agentSocket.on("__open", () => {
+        setState("open");
+        qc.invalidateQueries({ queryKey: ["conversations"] });
+        qc.invalidateQueries({ queryKey: ["conversation"] });
+        qc.invalidateQueries({ queryKey: ["messages"] });
       })
     );
     const timer = setInterval(() => setState(agentSocket.state), 2000);

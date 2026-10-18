@@ -130,6 +130,10 @@ test.describe("behaviour", () => {
     const row = agent.getByText(visitorName).first();
     await expect(row).toBeVisible({ timeout: 30_000 });
     await row.click();
+    // Wait until the thread (and therefore the socket + room subscription)
+    // is live before sending: the dashboard has no replay buffer, so a frame
+    // sent during the handshake would only show up on the next poll.
+    await expect(agent.getByText(first).first()).toBeVisible({ timeout: 20_000 });
 
     const live = "پیام زنده " + Date.now();
     await visitor.evaluate((t) => (window as any).ec("send", t), live);
@@ -152,12 +156,17 @@ test.describe("behaviour", () => {
     const row = agent.getByText(visitorName).first();
     await expect(row).toBeVisible({ timeout: 30_000 });
     await row.click();
+    await expect(agent.getByText(first).first()).toBeVisible({ timeout: 20_000 });
 
     const token = await agentToken(agentCtx, baseURL!);
     const list = await agentCtx.request.get(baseURL + "/api/v1/conversations?status=pending", {
       headers: { Authorization: "Bearer " + token },
     });
-    const convId = (await list.json()).data[0].id as string;
+    // Pick our own conversation by visitor name: the suite shares one instance.
+    const rows = (await list.json()).data as Array<{ id: string; visitor?: { name?: string } }>;
+    const mine = rows.find((c) => c.visitor?.name === visitorName);
+    if (!mine) throw new Error("typing test could not find its conversation");
+    const convId = mine.id;
     const visitorToken = await visitor.evaluate(() => {
       const key = (window as any).EveChat.projectKey;
       return localStorage.getItem("evechat:token:" + key) || "";
