@@ -224,3 +224,37 @@ func validateDay(raw string) (time.Time, error) {
 	}
 	return t.UTC(), nil
 }
+
+// ForgotPassword starts the reset flow. It always returns 200 so the endpoint
+// cannot be used to enumerate accounts.
+func (h *Handlers) ForgotPassword(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := bind(r, &in); err != nil {
+		return err
+	}
+	if h.Reset != nil {
+		_ = h.Reset.Request(r.Context(), in.Email)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "اگر این ایمیل ثبت شده باشد، لینک بازیابی ارسال می‌شود."})
+	return nil
+}
+
+// ResetPassword consumes a reset token and sets a new password.
+func (h *Handlers) ResetPassword(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := bind(r, &in); err != nil {
+		return err
+	}
+	if h.Reset == nil {
+		return apierr.BadRequest("بازیابی رمز فعال نیست")
+	}
+	if err := h.Reset.Reset(r.Context(), in.Token, in.Password); err != nil {
+		return err
+	}
+	return okMsg(w)
+}

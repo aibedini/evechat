@@ -51,31 +51,17 @@ const fa: Strings = {
 };
 
 const en: Strings = {
+  ...fa,
   title: "Support",
-  greeting: "Hi there 👋 How can we help?",
+  greeting: "Hi there ?? How can we help?",
   placeholder: "Write a message…",
   send: "Send",
   typing: "typing…",
-  connecting: "Connecting…",
-  reconnecting: "Reconnecting…",
   degraded: "Weak connection — messages will be sent once connected",
   offline: "Disconnected — messages are saved",
-  offlineNote: "Messages will be sent once connected",
-  pending: "Sending",
-  sent: "Sent",
-  read: "Read",
   failed: "Failed — tap to retry",
-  retry: "Retry",
-  close: "Close",
-  poweredBy: "Powered by EveChat",
   csatTitle: "Rate your experience",
-  csatComment: "Optional comment",
-  csatSubmit: "Submit",
-  csatThanks: "Thanks for your feedback 🙏",
-  loginRequired: "Enter your name to start the chat",
 };
-
-const maps: Record<Locale, Strings> = { fa, en };
 
 export function t(locale: string): Strings {
   return maps[(locale as Locale) in maps ? (locale as Locale) : "fa"];

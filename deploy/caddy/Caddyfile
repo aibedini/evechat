@@ -1,0 +1,29 @@
+# EveChat behind Caddy — automatic Let's Encrypt TLS.
+#
+# IMPORTANT:
+#   * flush_interval -1 is mandatory: without it Caddy buffers responses and
+#     the SSE fallback (/api/widget/v1/events) breaks.
+#   * set server.trust_proxy: true in evechat.yaml so rate limiting sees the
+#     real client IP from X-Forwarded-For.
+#   * the dashboard websocket (/ws/) upgrades automatically; no extra config.
+
+chat.example.com {
+	encode zstd gzip
+
+	# Long-lived cache for the immutable widget bundle and fonts.
+	@static path /widget.js /assets/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy 127.0.0.1:3000 {
+		flush_interval -1
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# Plain HTTP variant for local testing:
+# :8080 {
+# 	reverse_proxy 127.0.0.1:3000 {
+# 		flush_interval -1
+# 	}
+# }

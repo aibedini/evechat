@@ -1,0 +1,14 @@
+[Unit]
+Description=EveChat database backup
+After=evechat.service
+ConditionPathExists=/opt/evechat/evechat
+
+[Service]
+Type=oneshot
+User=evechat
+Group=evechat
+EnvironmentFile=/opt/evechat/.env
+ExecStart=/opt/evechat/scripts/backup.sh --keep-days 14
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

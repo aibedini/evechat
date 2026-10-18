@@ -20,14 +20,14 @@ const convCols = `id, project_id, visitor_id, assigned_agent_id, routing_rule_id
 
 // ConvFilter narrows conversation listings.
 type ConvFilter struct {
-	Status       string
-	Statuses     []string
-	AgentID      string
-	VisitorID    string
-	Channel      string
-	Query        string
-	From         time.Time
-	To           time.Time
+	Status    string
+	Statuses  []string
+	AgentID   string
+	VisitorID string
+	Channel   string
+	Query     string
+	From      time.Time
+	To        time.Time
 	// RestrictToAgentID implements the `agent` role visibility rule: a plain
 	// agent only sees conversations assigned to them plus unassigned ones.
 	RestrictToAgentID string
@@ -39,22 +39,22 @@ type ConvFilter struct {
 
 func scanConv(s scanner) (*models.Conversation, error) {
 	var (
-		c             models.Conversation
-		assigned      sql.NullString
-		rule          sql.NullString
-		subject       sql.NullString
-		pageURL       sql.NullString
-		pageTitle     sql.NullString
-		referrer      sql.NullString
-		tg            sql.NullString
-		phone         sql.NullString
-		ticket        sql.NullString
-		lastMsg       models.NullTime
-		firstResp     models.NullTime
-		resolved      models.NullTime
-		csat          sql.NullInt64
-		csatComment   sql.NullString
-		createdAt     models.NullTime
+		c           models.Conversation
+		assigned    sql.NullString
+		rule        sql.NullString
+		subject     sql.NullString
+		pageURL     sql.NullString
+		pageTitle   sql.NullString
+		referrer    sql.NullString
+		tg          sql.NullString
+		phone       sql.NullString
+		ticket      sql.NullString
+		lastMsg     models.NullTime
+		firstResp   models.NullTime
+		resolved    models.NullTime
+		csat        sql.NullInt64
+		csatComment sql.NullString
+		createdAt   models.NullTime
 	)
 	if err := s.Scan(&c.ID, &c.ProjectID, &c.VisitorID, &assigned, &rule, &c.Status, &c.Channel,
 		&subject, &pageURL, &pageTitle, &referrer, &tg, &phone, &ticket,

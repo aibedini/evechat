@@ -16,11 +16,11 @@ import (
 // Claims is the JWT payload for dashboard sessions.
 type Claims struct {
 	jwt.RegisteredClaims
-	ProjectID string     `json:"pid"`
+	ProjectID string      `json:"pid"`
 	Role      models.Role `json:"role"`
-	Typ       string     `json:"typ"`
-	Email     string     `json:"email,omitempty"`
-	Name      string     `json:"name,omitempty"`
+	Typ       string      `json:"typ"`
+	Email     string      `json:"email,omitempty"`
+	Name      string      `json:"name,omitempty"`
 }
 
 // TokenPair is what login/refresh return.

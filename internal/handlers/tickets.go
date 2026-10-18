@@ -31,15 +31,15 @@ func (h *Handlers) ListTickets(w http.ResponseWriter, r *http.Request) error {
 }
 
 type ticketInput struct {
-	Title          string   `json:"title"`
-	Description    string   `json:"description"`
-	Priority       string   `json:"priority"`
-	Status         string   `json:"status"`
-	Tags           []string `json:"tags"`
-	VisitorID      *string  `json:"visitor_id"`
-	ConversationID *string  `json:"conversation_id"`
-	AssignedAgentID *string `json:"assigned_agent_id"`
-	DueAt          string   `json:"due_at"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	Priority        string   `json:"priority"`
+	Status          string   `json:"status"`
+	Tags            []string `json:"tags"`
+	VisitorID       *string  `json:"visitor_id"`
+	ConversationID  *string  `json:"conversation_id"`
+	AssignedAgentID *string  `json:"assigned_agent_id"`
+	DueAt           string   `json:"due_at"`
 }
 
 // CreateTicket creates a standalone ticket.

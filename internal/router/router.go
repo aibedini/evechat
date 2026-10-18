@@ -1,8 +1,11 @@
 package router
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -33,15 +36,19 @@ type Deps struct {
 
 // New builds the HTTP router.
 func New(d Deps) http.Handler {
-	wrap := d.H.H
 	r := chi.NewRouter()
 
 	r.Use(chimw.RealIP)
 	r.Use(middleware.Recover)
 	r.Use(middleware.RequestID)
 	r.Use(requestLogger(d.Log))
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.Blocklist(d.H.State.Blocklist(), d.Cfg.Server.TrustProxy))
+	r.Use(middleware.Instrument(d.H.MetricsReg))
 	r.Use(chimw.Compress(5))
+	r.Use(middleware.SetupGate(d.H.State))
 
+	wrap := d.H.H
 	openCORS := middleware.OpenCORS()
 	strictCORS := middleware.StrictCORS(d.Cfg.Server.PublicURL)
 
@@ -57,6 +64,12 @@ func New(d Deps) http.Handler {
 		return pid + "|" + middleware.ClientIP(r, d.Cfg.Server.TrustProxy)
 	}
 
+	// ---- static assets (fonts + docs), always public ----
+	r.Get("/assets/fonts/*", fontHandler)
+	r.Get("/assets/openapi.yaml", openAPIHandler)
+	r.Get("/api/openapi.yaml", openAPIHandler)
+	r.Get("/api/docs", docsHandler)
+
 	// ---- widget (open CORS, project-key auth) ----
 	r.Group(func(r chi.Router) {
 		r.Use(openCORS)
@@ -66,6 +79,7 @@ func New(d Deps) http.Handler {
 			// authenticated by the visitor session token, which is already
 			// scoped to one project and one visitor.
 			r.With(d.APIKey.Handler).Get("/config", wrap(d.H.WidgetConfig))
+			r.With(d.APIKey.Handler).Get("/challenge", wrap(d.H.WidgetChallenge))
 			r.With(d.APIKey.Handler, d.WidgetLimit.Middleware(widgetKey)).Post("/session", wrap(d.H.WidgetSession))
 			r.Get("/events", wrap(d.H.WidgetEvents))
 			r.Get("/poll", wrap(d.H.WidgetPoll))
@@ -78,12 +92,27 @@ func New(d Deps) http.Handler {
 	// ---- visitor websocket (token auth inside the handler) ----
 	r.With(openCORS).Get("/ws/visitor", wrap(d.H.WSVisitor))
 
+	// ---- first-run setup wizard ----
+	r.Handle("/setup", setupSPAHandler())
+	r.Handle("/setup/*", setupSPAHandler())
+	r.Route("/api/setup", func(r chi.Router) {
+		r.Get("/status", wrap(d.H.SetupStatus))
+		r.Post("/check", wrap(d.H.SetupCheck))
+		r.Post("/admin", wrap(d.H.SetupAdmin))
+		r.Post("/project", wrap(d.H.SetupProject))
+		r.Post("/integrations", wrap(d.H.SetupIntegrations))
+		r.Post("/test/{kind}", wrap(d.H.SetupTest))
+		r.Post("/complete", wrap(d.H.SetupComplete))
+	})
+
 	// ---- auth ----
 	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Use(strictCORS)
 		loginKey := func(req *http.Request) string { return "login|" + ipKey(req) }
 		r.With(d.LoginLimit.Middleware(loginKey)).Post("/login", wrap(d.H.Login))
 		r.With(d.LoginLimit.Middleware(loginKey)).Post("/refresh", wrap(d.H.Refresh))
+		r.With(d.LoginLimit.Middleware(loginKey)).Post("/forgot", wrap(d.H.ForgotPassword))
+		r.With(d.LoginLimit.Middleware(loginKey)).Post("/reset", wrap(d.H.ResetPassword))
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(d.Tokens))
 			r.Post("/logout", wrap(d.H.Logout))
@@ -92,8 +121,9 @@ func New(d Deps) http.Handler {
 		})
 	})
 
-	// ---- public health ----
+	// ---- public health + metrics ----
 	r.With(strictCORS).Get("/api/v1/health", wrap(d.H.Health))
+	r.Get("/metrics", wrap(d.H.Metrics))
 
 	// Public integration callbacks authenticate themselves with the shared
 	// secret from Telegram / GMweb, so the JWT middleware is bypassed for
@@ -123,6 +153,8 @@ func New(d Deps) http.Handler {
 			}
 			return "agent|" + c.Subject
 		}))
+
+		r.Get("/config", wrap(d.H.PublicConfig))
 
 		r.Get("/settings/project", wrap(d.H.GetProjectSettings))
 		r.Put("/settings/project", wrap(d.H.UpdateProjectSettings))
@@ -209,10 +241,20 @@ func New(d Deps) http.Handler {
 		r.Get("/integrations/eve/user", wrap(d.H.EVEUser))
 		r.Post("/integrations/gmweb/test", wrap(d.H.TestSMS))
 
+		r.Get("/security/blocklist", wrap(d.H.GetBlocklist))
+		r.Put("/security/blocklist", wrap(d.H.UpdateBlocklist))
+
+		r.Get("/audit", wrap(d.H.ListAudit))
+
 		r.Get("/domains", wrap(d.H.ListDomains))
 		r.Post("/domains", wrap(d.H.AddDomain))
 		r.Post("/domains/{id}/verify", wrap(d.H.VerifyDomain))
 		r.Delete("/domains/{id}", wrap(d.H.DeleteDomain))
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireRole("admin", "superadmin"))
+			r.Get("/diagnostics", wrap(d.H.Diagnostics))
+		})
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireRole("superadmin"))
@@ -224,8 +266,6 @@ func New(d Deps) http.Handler {
 			r.Post("/admin/tenant-plan", wrap(d.H.SetTenantPlan))
 		})
 	})
-
-
 
 	// ---- agent websocket ----
 	r.With(strictCORS).Get("/ws/agent", wrap(d.H.WSAgent))
@@ -242,7 +282,8 @@ func New(d Deps) http.Handler {
 func requestLogger(log zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/api/v1/health" || strings.HasPrefix(r.URL.Path, "/uploads/") {
+			if r.URL.Path == "/api/v1/health" || strings.HasPrefix(r.URL.Path, "/uploads/") ||
+				strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/metrics" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -260,6 +301,63 @@ func requestLogger(log zerolog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
+// fontHandler serves the self-hosted Vazirmatn files with immutable caching and
+// permissive CORS (the widget loads them from customer origins).
+func fontHandler(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(r.URL.Path, "/assets/fonts/")
+	if name == "" || strings.Contains(name, "..") {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := fs.ReadFile(embedfs.Assets(), path.Join("fonts", name))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	sum := sha256.Sum256(data)
+	etag := `"` + hex.EncodeToString(sum[:8]) + `"`
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	switch {
+	case strings.HasSuffix(name, ".woff2"):
+		w.Header().Set("Content-Type", "font/woff2")
+	case strings.HasSuffix(name, ".css"):
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+	case strings.HasSuffix(name, ".txt"):
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	_, _ = w.Write(data)
+}
+
+func openAPIHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := fs.ReadFile(embedfs.Assets(), "openapi.yaml")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	_, _ = w.Write(data)
+}
+
+func docsHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := fs.ReadFile(embedfs.Assets(), "docs.html")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(data)
+}
+
 func uploadsHandler(cfg *config.Config) http.Handler {
 	root := http.Dir(cfg.Storage.UploadsDir)
 	fileServer := http.FileServer(root)
@@ -269,6 +367,7 @@ func uploadsHandler(cfg *config.Config) http.Handler {
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:")
 		if isImagePath(r.URL.Path) {
 			w.Header().Set("Content-Disposition", "inline")
 		} else {
@@ -309,7 +408,7 @@ func spaHandler() http.Handler {
 			p = "index.html"
 		}
 		if strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(r.URL.Path, "/ws") {
-			apierr.Write(w, apierr.NotFound("???? ???? ???"))
+			apierr.Write(w, apierr.NotFound("مسیر یافت نشد"))
 			return
 		}
 		if r.URL.Path == "/favicon.ico" {
@@ -341,5 +440,35 @@ func spaHandler() http.Handler {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		_, _ = w.Write(index)
+	})
+}
+
+func setupSPAHandler() http.Handler {
+	setupFS := embedfs.Setup()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(r.URL.Path, "/setup")
+		p = strings.TrimPrefix(p, "/")
+		if p == "" || !strings.Contains(p, ".") {
+			p = "index.html"
+		}
+		data, err := fs.ReadFile(setupFS, p)
+		if err != nil {
+			data, err = fs.ReadFile(setupFS, "index.html")
+			if err != nil {
+				http.Error(w, "setup bundle not built", http.StatusServiceUnavailable)
+				return
+			}
+			p = "index.html"
+		}
+		switch {
+		case strings.HasSuffix(p, ".js"):
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		case strings.HasSuffix(p, ".css"):
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		default:
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		_, _ = w.Write(data)
 	})
 }

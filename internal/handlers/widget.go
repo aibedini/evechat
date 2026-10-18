@@ -16,6 +16,7 @@ import (
 	"github.com/evechat/evechat/internal/embedfs"
 	"github.com/evechat/evechat/internal/middleware"
 	"github.com/evechat/evechat/internal/models"
+	"github.com/evechat/evechat/internal/security"
 	"github.com/evechat/evechat/internal/services"
 )
 
@@ -121,17 +122,20 @@ func strOfAny(v any) string {
 }
 
 type widgetSessionRequest struct {
-	Token   string `json:"token"`
-	Locale  string `json:"locale"`
-	Visitor struct {
+	Token     string `json:"token"`
+	Locale    string `json:"locale"`
+	Challenge string `json:"challenge"`
+	Nonce     string `json:"nonce"`
+	Visitor   struct {
 		Name          string         `json:"name"`
+		Website       string         `json:"website"`
 		Email         string         `json:"email"`
 		Mobile        string         `json:"mobile"`
 		EVEUserID     string         `json:"eve_user_id"`
 		EVEResellerID string         `json:"eve_reseller_id"`
 		EVEMobile     string         `json:"eve_mobile"`
 		Metadata      models.JSONMap `json:"metadata"`
-		Subscription   models.JSONMap `json:"subscription"`
+		Subscription  models.JSONMap `json:"subscription"`
 	} `json:"visitor"`
 	Page struct {
 		URL      string `json:"url"`
@@ -150,7 +154,17 @@ func (h *Handlers) WidgetSession(w http.ResponseWriter, r *http.Request) error {
 	if err := bind(r, &in); err != nil {
 		return err
 	}
+	// Honeypot: real visitors never fill the hidden "website" field.
+	if strings.TrimSpace(in.Visitor.Website) != "" {
+		return apierr.BadRequest("درخواست نامعتبر است")
+	}
+	if base := h.State.POWDifficulty(h.Cfg.Security.POWDifficulty); base > 0 {
+		if in.Challenge == "" || !h.State.Pow().Verify(in.Challenge, in.Nonce) {
+			return apierr.New(http.StatusForbidden, "pow_required", "برای ادامه، چالش امنیتی را حل کنید")
+		}
+	}
 	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	h.State.Throttle().Hit(ip)
 
 	v, sess, err := h.Visitors.IdentifyOrCreate(r.Context(), services.SessionRequest{
 		ProjectID: project.ID,
@@ -454,5 +468,32 @@ func (h *Handlers) WidgetSync(w http.ResponseWriter, r *http.Request) error {
 		return apierr.Internal(err)
 	}
 	writeJSON(w, http.StatusOK, res)
+	return nil
+}
+
+// WidgetChallenge issues a single-use proof-of-work challenge. Difficulty is
+// adaptive: repeat offenders from the same IP (and low-reputation visitors)
+// receive a harder challenge.
+func (h *Handlers) WidgetChallenge(w http.ResponseWriter, r *http.Request) error {
+	base := h.State.POWDifficulty(h.Cfg.Security.POWDifficulty)
+	if base <= 0 {
+		writeJSON(w, http.StatusOK, map[string]any{"challenge": "", "difficulty": 0, "expires_at": 0})
+		return nil
+	}
+	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	difficulty := security.DifficultyFor(base, h.State.Throttle().Count(ip))
+	if token := strings.TrimSpace(r.URL.Query().Get("token")); token != "" {
+		if sess, err := h.Repo.Sessions.Get(r.Context(), token); err == nil {
+			if v, verr := h.Repo.Visitors.GetByID(r.Context(), sess.VisitorID); verr == nil && v.Reputation < 50 {
+				difficulty += 4
+			}
+		}
+	}
+	challenge, expires := h.State.Pow().Issue(difficulty)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"challenge":  challenge,
+		"difficulty": difficulty,
+		"expires_at": expires,
+	})
 	return nil
 }

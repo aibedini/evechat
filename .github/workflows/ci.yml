@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+      - name: gofmt
+        run: |
+          out="$(gofmt -l . | grep -v '^web/' || true)"
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "::error::gofmt needs to run on the files above"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./... -race -count=1
+      - name: govulncheck
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./... | tee vuln.txt
+      - name: vulnerability summary
+        if: always()
+        run: |
+          {
+            echo "### govulncheck"
+            echo '```'
+            tail -n 40 vuln.txt 2>/dev/null || echo "no output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            web/widget/package-lock.json
+            web/dashboard/package-lock.json
+      - name: widget
+        working-directory: web/widget
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          node -e "const z=require('zlib'),fs=require('fs');const n=z.gzipSync(fs.readFileSync('dist/widget.js')).length;console.log('widget gzip',n);if(n>=12288)process.exit(1)"
+          npx vitest run
+      - name: dashboard
+        working-directory: web/dashboard
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: setup wizard
+        working-directory: web/setup
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: contrast budget
+        run: node scripts/contrast-check.mjs
+      - name: external URL audit
+        run: node scripts/url-audit.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: widget
+          path: web/widget/dist/widget.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard
+          path: embed/dashboard
+      - uses: actions/upload-artifact@v4
+        with:
+          name: setup
+          path: embed/setup
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [go, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: evechat:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

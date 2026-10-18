@@ -15,6 +15,8 @@ export function resolveConfig(): HostConfig | null {
     autoOpen: !!raw.autoOpen,
     visitor: raw.visitor || {},
     colors: raw.colors || {},
+    theme: raw.theme === "light" || raw.theme === "dark" ? raw.theme : "auto",
+    font: raw.font === "inherit" || raw.font === "none" ? raw.font : "vazirmatn",
   };
 }
 

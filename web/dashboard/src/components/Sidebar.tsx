@@ -2,6 +2,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { t } from "@/lib/i18n";
 import { cn, initials } from "@/lib/utils";
+import { resolvedTheme, toggleTheme } from "@/lib/theme";
+import { useState } from "react";
 
 const links = [
   { to: "/inbox", label: t("inbox"), icon: "💬" },
@@ -17,11 +19,15 @@ const settings = [
   { to: "/settings/team", label: t("team"), icon: "👤" },
   { to: "/settings/integrations", label: t("integrations"), icon: "🔌" },
   { to: "/settings/webhooks", label: t("webhooks"), icon: "🪝" },
+  { to: "/settings/security", label: "امنیت", icon: "🛡️" },
+  { to: "/settings/activity", label: "گزارش فعالیت", icon: "📜" },
+  { to: "/settings/diagnostics", label: "سلامت سیستم", icon: "🩺" },
 ];
 
 export function Sidebar({ online }: { online: boolean }) {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
+  const [dark, setDark] = useState(resolvedTheme() === "dark");
 
   return (
     <aside className="flex w-60 shrink-0 flex-col bg-slate-900 text-white">
@@ -64,15 +70,24 @@ export function Sidebar({ online }: { online: boolean }) {
             </div>
           </div>
         </div>
-        <button
-          onClick={async () => {
-            await signOut();
-            navigate("/login");
-          }}
-          className="w-full rounded-xl px-3 py-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
-        >
-          {t("logout")}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setDark(toggleTheme() === "dark")}
+            className="flex-1 rounded-xl px-3 py-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
+            aria-label={dark ? "حالت روشن" : "حالت تاریک"}
+          >
+            {dark ? "☀️ روشن" : "🌙 تاریک"}
+          </button>
+          <button
+            onClick={async () => {
+              await signOut();
+              navigate("/login");
+            }}
+            className="flex-1 rounded-xl px-3 py-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
+          >
+            {t("logout")}
+          </button>
+        </div>
       </div>
     </aside>
   );

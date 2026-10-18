@@ -138,7 +138,7 @@ func TestSubscriptionActive(t *testing.T) {
 
 func TestParseUA(t *testing.T) {
 	cases := []struct {
-		ua                       string
+		ua                      string
 		device, osName, browser string
 	}{
 		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36", "desktop", "Windows", "Chrome"},

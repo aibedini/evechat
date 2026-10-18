@@ -1,0 +1,48 @@
+# Zero-build path: pulls the published image and reads secrets from .env.
+#
+#   cp .env.example .env   # fill EVECHAT_AUTH__JWT_SECRET and EVECHAT_ENCRYPTION_KEY_V1
+#   docker compose -f docker-compose.quick.yml up -d
+services:
+  evechat:
+    image: ghcr.io/aibedini/evechat:${EVECHAT_TAG:-latest}
+    container_name: evechat
+    restart: unless-stopped
+    ports:
+      - "${EVECHAT_PORT:-3000}:3000"
+    env_file:
+      - .env
+    volumes:
+      - evechat-data:/data
+    healthcheck:
+      test: ["CMD", "/evechat", "healthcheck", "--config", "/data/evechat.yaml"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Automatic TLS. Uncomment, set EVECHAT_DOMAIN, and point DNS at this host.
+  # caddy:
+  #   image: caddy:2-alpine
+  #   restart: unless-stopped
+  #   ports: ["80:80", "443:443"]
+  #   environment:
+  #     EVECHAT_DOMAIN: ${EVECHAT_DOMAIN:?set EVECHAT_DOMAIN}
+  #   command: caddy reverse-proxy --from ${EVECHAT_DOMAIN} --to evechat:3000
+  #   volumes:
+  #     - caddy-data:/data
+  #     - caddy-config:/config
+  #   depends_on: [evechat]
+
+volumes:
+  evechat-data:
+  # caddy-data:
+  # caddy-config:

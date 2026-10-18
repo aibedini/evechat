@@ -1,0 +1,19 @@
+name: Question
+description: سؤال درباره نصب یا استفاده
+title: "[question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ابتدا مستندات را ببینید: README.fa.md، docs/INSTALL.fa.md، docs/CONFIG.fa.md.
+  - type: textarea
+    id: question
+    attributes:
+      label: سؤال
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: زمینه (نسخه، نصب، تنظیمات مرتبط)

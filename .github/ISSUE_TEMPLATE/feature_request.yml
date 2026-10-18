@@ -1,0 +1,30 @@
+name: Feature request
+description: پیشنهاد قابلیت جدید
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: مشکل یا نیاز
+      description: چه چیزی امروز سخت است؟
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: راه‌حل پیشنهادی
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: گزینه‌های دیگر
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: سازگاری
+      options:
+        - label: این تغییر نیازی به وابستگی جدید ندارد
+        - label: این تغییر اندازه ویجت (۱۲KB gzip) را نقض نمی‌کند
+        - label: متن‌های کاربری فارسی خواهند بود

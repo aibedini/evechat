@@ -1,12 +1,6 @@
 import { t } from "../i18n";
 import type { Message } from "../types";
 
-function esc(s: string): string {
-  return String(s).replace(/[&<>"']/g, (ch) =>
-    ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch === '"' ? "&quot;" : "&#39;"
-  );
-}
-
 function timeOf(msg: Message): string {
   const raw = msg.created_at;
   if (!raw) return "";
@@ -41,7 +35,7 @@ export function renderMessages(container: HTMLElement, messages: Message[], loca
   container.innerHTML = "";
   if (!windowed.length) {
     const empty = document.createElement("div");
-    empty.className = "ec-empty";
+    empty.className = "ec-msg system";
     empty.textContent = strings.greeting;
     container.appendChild(empty);
     return;
@@ -129,4 +123,3 @@ export function renderCSAT(container: HTMLElement, locale: string, onSubmit: (sc
   container.appendChild(submit);
 }
 
-export { esc };

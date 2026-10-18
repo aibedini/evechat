@@ -26,7 +26,9 @@ func Unauthorized(msg string) *Error { return New(http.StatusUnauthorized, "unau
 func Forbidden(msg string) *Error    { return New(http.StatusForbidden, "forbidden", msg) }
 func NotFound(msg string) *Error     { return New(http.StatusNotFound, "not_found", msg) }
 func Conflict(msg string) *Error     { return New(http.StatusConflict, "conflict", msg) }
-func TooLarge(msg string) *Error     { return New(http.StatusRequestEntityTooLarge, "payload_too_large", msg) }
+func TooLarge(msg string) *Error {
+	return New(http.StatusRequestEntityTooLarge, "payload_too_large", msg)
+}
 
 func RateLimited(msg string) *Error {
 	return New(http.StatusTooManyRequests, "rate_limited", msg)

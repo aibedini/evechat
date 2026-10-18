@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: [dependencies, go]
+
+  - package-ecosystem: npm
+    directory: "/web/widget"
+    schedule:
+      interval: weekly
+    labels: [dependencies, widget]
+
+  - package-ecosystem: npm
+    directory: "/web/dashboard"
+    schedule:
+      interval: weekly
+    labels: [dependencies, dashboard]
+
+  - package-ecosystem: npm
+    directory: "/web/setup"
+    schedule:
+      interval: weekly
+    labels: [dependencies, setup]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker]

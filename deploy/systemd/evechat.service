@@ -1,0 +1,39 @@
+[Unit]
+Description=EveChat live support server
+Documentation=https://github.com/aibedini/evechat
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=evechat
+Group=evechat
+WorkingDirectory=/opt/evechat
+EnvironmentFile=/opt/evechat/.env
+ExecStartPre=/opt/evechat/evechat --config /opt/evechat/evechat.yaml migrate
+ExecStart=/opt/evechat/evechat --config /opt/evechat/evechat.yaml serve
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGTERM
+LimitNOFILE=65535
+
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+ReadWritePaths=/opt/evechat/data
+
+[Install]
+WantedBy=multi-user.target

@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "Segoe UI", "Tahoma", "Noto Sans Arabic", "sans-serif"],
+        sans: ["Vazirmatn", "system-ui", "-apple-system", "Segoe UI", "Tahoma", "sans-serif"],
       },
       colors: {
         brand: {

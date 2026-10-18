@@ -49,7 +49,7 @@ export function VisitorPanel({
   const left = daysLeft(expiry);
 
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col overflow-y-auto border-s border-slate-200 bg-white">
+    <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-s border-slate-200 bg-white xl:flex">
       <div className="border-b border-slate-100 p-4">
         <div className="flex items-center gap-2">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">

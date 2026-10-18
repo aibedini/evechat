@@ -192,10 +192,10 @@ func (h *Handlers) UpdateVisitor(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	var in struct {
-		Name     *string         `json:"name"`
-		Email    *string         `json:"email"`
-		Phone    *string         `json:"phone"`
-		Metadata models.JSONMap  `json:"metadata"`
+		Name     *string        `json:"name"`
+		Email    *string        `json:"email"`
+		Phone    *string        `json:"phone"`
+		Metadata models.JSONMap `json:"metadata"`
 	}
 	if err := bind(r, &in); err != nil {
 		return err

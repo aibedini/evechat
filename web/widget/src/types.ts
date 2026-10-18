@@ -92,6 +92,8 @@ export interface HostConfig {
     subscription?: Record<string, any>;
   };
   colors?: Record<string, string>;
+  theme?: "auto" | "light" | "dark";
+  font?: "vazirmatn" | "inherit" | "none";
 }
 
 export interface OutboxItem {

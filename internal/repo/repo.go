@@ -34,6 +34,8 @@ type Repo struct {
 	Canned        *CannedRepo
 	Stats         *StatsRepo
 	SaaS          *SaaSRepo
+	Settings      *SettingsRepo
+	Audit         *AuditRepo
 }
 
 // New wires every sub-repository against one database handle.
@@ -53,6 +55,8 @@ func New(d *db.DB) *Repo {
 		Canned:        &CannedRepo{db: d},
 		Stats:         &StatsRepo{db: d},
 		SaaS:          &SaaSRepo{db: d},
+		Settings:      &SettingsRepo{db: d},
+		Audit:         &AuditRepo{db: d},
 	}
 }
 
@@ -83,6 +87,13 @@ func strVal(ns sql.NullString) string {
 		return ""
 	}
 	return ns.String
+}
+
+func nullStrValue(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func toNullStr(p *string) sql.NullString {

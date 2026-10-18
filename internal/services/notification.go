@@ -11,12 +11,12 @@ import (
 
 // Notification event names.
 const (
-	EventChatStarted    = "chat.started"
+	EventChatStarted     = "chat.started"
 	EventMessageReceived = "message.received"
-	EventChatAssigned   = "chat.assigned"
-	EventChatResolved   = "chat.resolved"
-	EventTicketCreated  = "ticket.created"
-	EventCSATReceived   = "csat.received"
+	EventChatAssigned    = "chat.assigned"
+	EventChatResolved    = "chat.resolved"
+	EventTicketCreated   = "ticket.created"
+	EventCSATReceived    = "csat.received"
 )
 
 // Event is one notification. Data is channel-specific but always contains the

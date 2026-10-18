@@ -1,0 +1,21 @@
+# EveChat on Traefik v3 (file provider example).
+# Put this next to your static configuration and adjust the rule/host.
+http:
+  routers:
+    evechat:
+      rule: "Host(`chat.example.com`)"
+      entryPoints:
+        - websecure
+      service: evechat
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    evechat:
+      loadBalancer:
+        servers:
+          - url: "http://evechat:3000"
+        # Streaming (SSE) needs the response to stay open.
+        responseForwarding:
+          flushInterval: "100ms"
+        passHostHeader: true

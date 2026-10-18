@@ -33,7 +33,7 @@ export function ConversationList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="flex h-full w-[330px] shrink-0 flex-col border-e border-slate-200 bg-white">
+    <div className="flex h-full w-full shrink-0 flex-col border-e border-slate-200 bg-white sm:w-[290px] lg:w-[330px]">
       <div className="border-b border-slate-100 p-3">
         <input
           id="conv-search"

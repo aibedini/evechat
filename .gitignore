@@ -31,3 +31,10 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+data-e2e/
+data-cli/
+server.log
+seed.log
+*.prev
+.cache/
+*.tsbuildinfo

@@ -73,6 +73,26 @@ type Config struct {
 		LoginPerMin         int `koanf:"login_per_min"`
 	} `koanf:"ratelimit"`
 
+	// Security tunes abuse protection. Blocklists are also editable at runtime
+	// through app_settings; these values are the boot defaults.
+	Security struct {
+		POWDifficulty           int      `koanf:"pow_difficulty"`
+		MessagesPerConversation int      `koanf:"messages_per_conversation_per_min"`
+		ConversationsPerHour    int      `koanf:"conversations_per_visitor_per_hour"`
+		BlockedIPs              []string `koanf:"blocked_ips"`
+		BlockedCIDRs            []string `koanf:"blocked_cidrs"`
+		BlockedUserAgents       []string `koanf:"blocked_user_agents"`
+	} `koanf:"security"`
+
+	Metrics struct {
+		Enabled bool   `koanf:"enabled"`
+		Token   string `koanf:"token"`
+	} `koanf:"metrics"`
+
+	Audit struct {
+		RetentionDays int `koanf:"retention_days"`
+	} `koanf:"audit"`
+
 	Telegram struct {
 		BotToken   string `koanf:"bot_token"`
 		WebhookURL string `koanf:"webhook_url"`
@@ -85,6 +105,8 @@ type Config struct {
 		GMweb GMwebConfig `koanf:"gmweb"`
 	} `koanf:"integrations"`
 
+	SMTP SMTPConfig `koanf:"smtp"`
+
 	AI struct {
 		Enabled      bool   `koanf:"enabled"`
 		ClaudeAPIKey string `koanf:"claude_api_key"`
@@ -94,8 +116,11 @@ type Config struct {
 	} `koanf:"ai"`
 
 	Log struct {
-		Level  string `koanf:"level"`
-		Pretty bool   `koanf:"pretty"`
+		Level      string `koanf:"level"`
+		Pretty     bool   `koanf:"pretty"`
+		File       string `koanf:"file"`
+		MaxSizeMB  int    `koanf:"max_size_mb"`
+		MaxBackups int    `koanf:"max_backups"`
 	} `koanf:"log"`
 }
 
@@ -112,6 +137,19 @@ type GMwebConfig struct {
 	BaseURL       string `koanf:"base_url"`
 	APIKey        string `koanf:"api_key"`
 	WebhookSecret string `koanf:"webhook_secret"`
+}
+
+// SMTPConfig configures the email notification channel.
+type SMTPConfig struct {
+	Enabled   bool   `koanf:"enabled"`
+	Host      string `koanf:"host"`
+	Port      int    `koanf:"port"`
+	Username  string `koanf:"username"`
+	Password  string `koanf:"password"`
+	FromName  string `koanf:"from_name"`
+	FromEmail string `koanf:"from_email"`
+	TLSMode   string `koanf:"tls_mode"` // plain | starttls | implicit
+	Timeout   string `koanf:"timeout"`
 }
 
 func defaults() *Config {
@@ -149,11 +187,25 @@ func defaults() *Config {
 	c.RateLimit.MessagePerMin = 60
 	c.RateLimit.LoginPerMin = 5
 
+	c.Security.POWDifficulty = 16
+	c.Security.MessagesPerConversation = 30
+	c.Security.ConversationsPerHour = 5
+
+	c.Metrics.Enabled = false
+	c.Audit.RetentionDays = 180
+
+	c.SMTP.Port = 587
+	c.SMTP.TLSMode = "starttls"
+	c.SMTP.Timeout = "10s"
+	c.SMTP.FromName = "EveChat"
+
 	c.AI.Model = "claude-haiku-4-5"
 	c.AI.MaxTokens = 512
 	c.AI.HandoffAfter = 3
 
 	c.Log.Level = "info"
+	c.Log.MaxSizeMB = 50
+	c.Log.MaxBackups = 5
 	return c
 }
 
@@ -185,7 +237,24 @@ func Load(path string) (*Config, error) {
 	if err := k.Unmarshal("", cfg); err != nil {
 		return nil, fmt.Errorf("unmarshalling config: %w", err)
 	}
+	// List values arrive comma separated from the environment.
+	cfg.Security.BlockedIPs = splitCSV(cfg.Security.BlockedIPs)
+	cfg.Security.BlockedCIDRs = splitCSV(cfg.Security.BlockedCIDRs)
+	cfg.Security.BlockedUserAgents = splitCSV(cfg.Security.BlockedUserAgents)
 	return cfg, nil
+}
+
+func splitCSV(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, raw := range in {
+		for _, part := range strings.Split(raw, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				out = append(out, part)
+			}
+		}
+	}
+	return out
 }
 
 // Validate hard-fails on insecure or unusable configuration.
@@ -254,11 +323,16 @@ func (c *Config) dur(s string, def time.Duration) time.Duration {
 	return d
 }
 
-func (c *Config) ReadTimeout() time.Duration     { return c.dur(c.Server.ReadTimeout, 15*time.Second) }
-func (c *Config) WriteTimeout() time.Duration    { return c.dur(c.Server.WriteTimeout, 15*time.Second) }
-func (c *Config) ShutdownTimeout() time.Duration { return c.dur(c.Server.ShutdownTimeout, 20*time.Second) }
-func (c *Config) AccessExpiry() time.Duration    { return c.dur(c.Auth.AccessExpiry, 24*time.Hour) }
-func (c *Config) RefreshExpiry() time.Duration   { return c.dur(c.Auth.RefreshExpiry, 720*time.Hour) }
+func (c *Config) ReadTimeout() time.Duration  { return c.dur(c.Server.ReadTimeout, 15*time.Second) }
+func (c *Config) WriteTimeout() time.Duration { return c.dur(c.Server.WriteTimeout, 15*time.Second) }
+func (c *Config) ShutdownTimeout() time.Duration {
+	return c.dur(c.Server.ShutdownTimeout, 20*time.Second)
+}
+func (c *Config) AccessExpiry() time.Duration  { return c.dur(c.Auth.AccessExpiry, 24*time.Hour) }
+func (c *Config) RefreshExpiry() time.Duration { return c.dur(c.Auth.RefreshExpiry, 720*time.Hour) }
+
+// SMTPTimeout is the outbound mail timeout.
+func (c *Config) SMTPTimeout() time.Duration { return c.dur(c.SMTP.Timeout, 10*time.Second) }
 
 // BaseURL is server.public_url without a trailing slash.
 func (c *Config) BaseURL() string { return strings.TrimRight(c.Server.PublicURL, "/") }
@@ -266,4 +340,12 @@ func (c *Config) BaseURL() string { return strings.TrimRight(c.Server.PublicURL,
 // Addr is the listen address.
 func (c *Config) Addr() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+}
+
+// DataDir is the directory that holds the database.
+func (c *Config) DataDir() string {
+	if c.Database.Path == "" || strings.HasPrefix(c.Database.Path, "file:") || c.Database.Path == ":memory:" {
+		return "."
+	}
+	return filepath.Dir(c.Database.Path)
 }

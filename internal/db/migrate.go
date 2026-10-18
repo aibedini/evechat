@@ -137,6 +137,28 @@ func splitStatements(body string) []string {
 	return out
 }
 
+// LatestMigrationVersion returns the highest embedded migration version.
+func LatestMigrationVersion() (int, error) {
+	entries, err := migrationsFS.ReadDir("migrations")
+	if err != nil {
+		return 0, fmt.Errorf("reading embedded migrations: %w", err)
+	}
+	latest := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		v, err := versionOf(e.Name())
+		if err != nil {
+			return 0, err
+		}
+		if v > latest {
+			latest = v
+		}
+	}
+	return latest, nil
+}
+
 func versionOf(name string) (int, error) {
 	base := strings.TrimSuffix(name, ".sql")
 	parts := strings.SplitN(base, "_", 2)

@@ -88,14 +88,14 @@ func (h *Handlers) ListConversations(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 	f := repo.ConvFilter{
-		Status:    q.Get("status"),
-		AgentID:   q.Get("agent"),
-		Channel:   q.Get("channel"),
-		Query:     q.Get("q"),
-		From:      from,
-		To:        to,
-		Limit:     limit,
-		Offset:    offset,
+		Status:     q.Get("status"),
+		AgentID:    q.Get("agent"),
+		Channel:    q.Get("channel"),
+		Query:      q.Get("q"),
+		From:       from,
+		To:         to,
+		Limit:      limit,
+		Offset:     offset,
 		HideClosed: q.Get("status") == "" || q.Get("status") == "open",
 	}
 	if f.AgentID == "me" {

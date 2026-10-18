@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/evechat/evechat/internal/apierr"
@@ -74,11 +75,17 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) error {
 		status = "degraded"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":  status,
-		"version": h.Version,
-		"uptime":  int64(time.Since(h.StartedAt).Seconds()),
-		"time":    time.Now().UTC(),
-		"db":      dbStatus,
+		"status":         status,
+		"version":        h.Version,
+		"commit":         h.Commit,
+		"build_date":     h.BuildDate,
+		"go_version":     runtime.Version(),
+		"instance_id":    h.State.InstanceID(),
+		"setup_complete": h.State.SetupCompleted(),
+		"uptime":         int64(time.Since(h.StartedAt).Seconds()),
+		"uptime_seconds": int64(time.Since(h.StartedAt).Seconds()),
+		"time":           time.Now().UTC(),
+		"db":             dbStatus,
 		"hub": map[string]any{
 			"conns":    hubStats.Connections,
 			"rooms":    hubStats.Rooms,

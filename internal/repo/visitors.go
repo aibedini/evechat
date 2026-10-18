@@ -16,7 +16,7 @@ type VisitorRepo struct{ db *db.DB }
 
 const visitorCols = `id, project_id, name, email, phone, ip, country, device_type, os, browser,
 	user_agent, language, eve_mobile, eve_user_id, eve_reseller_id, eve_subscription_info,
-	metadata, is_banned, banned_until, first_seen_at, last_seen_at`
+	metadata, is_banned, banned_until, first_seen_at, last_seen_at, reputation`
 
 // VisitorFilter narrows a visitor listing.
 type VisitorFilter struct {
@@ -32,26 +32,26 @@ type VisitorFilter struct {
 
 func scanVisitor(s scanner) (*models.Visitor, error) {
 	var (
-		v      models.Visitor
-		name   sql.NullString
-		email  sql.NullString
-		phone  sql.NullString
-		ip     sql.NullString
-		ctry   sql.NullString
-		device sql.NullString
-		os     sql.NullString
+		v       models.Visitor
+		name    sql.NullString
+		email   sql.NullString
+		phone   sql.NullString
+		ip      sql.NullString
+		ctry    sql.NullString
+		device  sql.NullString
+		os      sql.NullString
 		browser sql.NullString
-		ua     sql.NullString
-		lang   sql.NullString
-		mobile sql.NullString
-		uid    sql.NullString
-		rid    sql.NullString
-		banned models.NullTime
-		first  models.NullTime
-		last   models.NullTime
+		ua      sql.NullString
+		lang    sql.NullString
+		mobile  sql.NullString
+		uid     sql.NullString
+		rid     sql.NullString
+		banned  models.NullTime
+		first   models.NullTime
+		last    models.NullTime
 	)
 	if err := s.Scan(&v.ID, &v.ProjectID, &name, &email, &phone, &ip, &ctry, &device, &os, &browser,
-		&ua, &lang, &mobile, &uid, &rid, &v.SubscriptionInfo, &v.Metadata, &v.IsBanned, &banned, &first, &last); err != nil {
+		&ua, &lang, &mobile, &uid, &rid, &v.SubscriptionInfo, &v.Metadata, &v.IsBanned, &banned, &first, &last, &v.Reputation); err != nil {
 		return nil, err
 	}
 	v.Name = str(name)
@@ -201,7 +201,8 @@ func (r *VisitorRepo) Ban(ctx context.Context, id string, until *time.Time) erro
 	if until != nil {
 		exp = models.FormatTime(*until)
 	}
-	res, err := r.db.W.ExecContext(ctx, `UPDATE visitors SET is_banned = 1, banned_until = ? WHERE id = ?`, exp, id)
+	res, err := r.db.W.ExecContext(ctx, `UPDATE visitors SET is_banned = 1, banned_until = ?,
+		reputation = CASE WHEN reputation > 20 THEN reputation - 20 ELSE 0 END WHERE id = ?`, exp, id)
 	if err != nil {
 		return fmt.Errorf("banning visitor: %w", err)
 	}
@@ -291,4 +292,13 @@ func (r *VisitorRepo) GetByIDs(ctx context.Context, ids []string) (map[string]*m
 		out[v.ID] = v
 	}
 	return out, rows.Err()
+}
+
+// AdjustReputation changes the abuse score, clamped to 0..100.
+func (r *VisitorRepo) AdjustReputation(ctx context.Context, id string, delta int) error {
+	_, err := r.db.W.ExecContext(ctx, `UPDATE visitors SET reputation = MAX(0, MIN(100, reputation + ?)) WHERE id = ?`, delta, id)
+	if err != nil {
+		return fmt.Errorf("adjusting reputation: %w", err)
+	}
+	return nil
 }

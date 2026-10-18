@@ -1,4 +1,5 @@
 // End-to-end smoke test for a running EveChat instance.
+import crypto from "node:crypto";
 // Usage: node scripts/smoke.mjs [baseUrl] [projectKey] [email] [password]
 const base = process.argv[2] || "http://127.0.0.1:3000";
 const projectKey = process.argv[3];
@@ -11,6 +12,27 @@ if (!projectKey || !password) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function leadingZeroBits(hex) {
+  let bits = 0;
+  for (const ch of hex) {
+    const v = parseInt(ch, 16);
+    if (v === 0) { bits += 4; continue; }
+    if (v < 2) bits += 3;
+    else if (v < 4) bits += 2;
+    else if (v < 8) bits += 1;
+    break;
+  }
+  return bits;
+}
+
+function solvePoW(challenge, difficulty) {
+  for (let i = 0; ; i++) {
+    const nonce = i.toString(36);
+    const digest = crypto.createHash("sha256").update(challenge + nonce).digest("hex");
+    if (leadingZeroBits(digest) >= difficulty) return nonce;
+  }
+}
 
 async function post(path, body, headers = {}) {
   const res = await fetch(base + path, {
@@ -55,8 +77,12 @@ async function main() {
   assert(health.status === "ok", "health status ok");
   assert(health.db === "ok", "db ok");
 
-  console.log("2. widget session");
+  console.log("2. widget challenge + session (proof of work)");
+  const challenge = await (await fetch(`${base}/api/widget/v1/challenge?project_key=${projectKey}`)).json();
+  const nonce = challenge.difficulty > 0 ? solvePoW(challenge.challenge, challenge.difficulty) : "";
   const session = await post(`/api/widget/v1/session?project_key=${projectKey}`, {
+    challenge: challenge.challenge,
+    nonce,
     visitor: { name: "Smoke Visitor", mobile: "09120000000", metadata: { utm_source: "smoke" } },
     page: { url: "http://example.com/pricing", title: "Pricing" },
   });

@@ -1,0 +1,96 @@
+name: E2E install
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  fresh-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: build binary
+        run: CGO_ENABLED=0 go build -o evechat ./cmd/evechat
+      - name: install into a clean prefix
+        run: |
+          set -euo pipefail
+          DIR="$RUNNER_TEMP/evechat"
+          mkdir -p "$DIR"
+          cp evechat "$DIR/"
+          export EVECHAT_AUTH__JWT_SECRET="$(openssl rand -base64 48)"
+          export EVECHAT_ENCRYPTION_KEY_V1="$(openssl rand -base64 32)"
+          cat > "$DIR/evechat.yaml" <<EOF
+          server:
+            host: "127.0.0.1"
+            port: 3210
+            public_url: "http://127.0.0.1:3210"
+          database:
+            path: "$DIR/data/evechat.db"
+          storage:
+            uploads_dir: "$DIR/data/uploads"
+          log:
+            level: "warn"
+          EOF
+          mkdir -p "$DIR/data"
+          "$DIR/evechat" --config "$DIR/evechat.yaml" setup --non-interactive --json \
+            --admin-email ci@evechat.local --admin-password "CiPassword123!" --project-name CI > setup.json
+          cat setup.json
+          nohup "$DIR/evechat" --config "$DIR/evechat.yaml" serve > server.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3210/api/v1/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3210/api/v1/health | tee health.json
+          KEY=$(node -e "console.log(require('./setup.json').project_key)")
+          node scripts/smoke.mjs http://127.0.0.1:3210 "$KEY" ci@evechat.local "CiPassword123!"
+      - name: logs on failure
+        if: failure()
+        run: tail -n 100 "$RUNNER_TEMP/evechat/server.log" || true
+
+  backup-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: seed, backup, restore
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=0 go build -o evechat ./cmd/evechat
+          DIR="$RUNNER_TEMP/e2e"; mkdir -p "$DIR/data"
+          export EVECHAT_AUTH__JWT_SECRET="$(openssl rand -base64 48)"
+          export EVECHAT_ENCRYPTION_KEY_V1="$(openssl rand -base64 32)"
+          printf 'server:\n  host: "127.0.0.1"\n  port: 3211\n  public_url: "http://127.0.0.1:3211"\ndatabase:\n  path: "%s/data/evechat.db"\nstorage:\n  uploads_dir: "%s/data/uploads"\nlog:\n  level: "warn"\n' "$DIR" "$DIR" > "$DIR/evechat.yaml"
+          ./evechat --config "$DIR/evechat.yaml" setup --non-interactive --json --admin-password "CiPassword123!" > setup.json
+          ./evechat --config "$DIR/evechat.yaml" backup "$DIR/backup" --with-uploads
+          ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz" --dry-run
+          rm -f "$DIR/data/evechat.db"*
+          ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz"
+          ./evechat --config "$DIR/evechat.yaml" doctor --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);console.log(r.summary);if(r.summary.fail>0)process.exit(1)})"
+
+  offline-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: bundle
+        run: make bundle
+      - name: install without network
+        run: |
+          set -euo pipefail
+          tar -xzf evechat-offline-*.tar.gz -C "$RUNNER_TEMP"
+          DIR=$(find "$RUNNER_TEMP" -maxdepth 1 -type d -name 'evechat-offline*' | head -n1)
+          cd "$DIR"
+          ./install-offline.sh --dir "$RUNNER_TEMP/offline-install" --no-systemd

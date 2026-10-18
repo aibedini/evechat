@@ -3,9 +3,10 @@ package repo
 import (
 	"context"
 	"database/sql"
-	"strings"
 	"fmt"
-	
+	"strings"
+	"time"
+
 	"github.com/evechat/evechat/internal/db"
 	"github.com/evechat/evechat/internal/models"
 )
@@ -18,12 +19,12 @@ const agentCols = `id, project_id, email, password_hash, name, avatar_url, role,
 
 func scanAgent(s scanner) (*models.Agent, error) {
 	var (
-		a          models.Agent
-		avatar     sql.NullString
-		telegram   sql.NullString
-		lastSeen   models.NullTime
-		createdAt  models.NullTime
-		updatedAt  models.NullTime
+		a         models.Agent
+		avatar    sql.NullString
+		telegram  sql.NullString
+		lastSeen  models.NullTime
+		createdAt models.NullTime
+		updatedAt models.NullTime
 	)
 	if err := s.Scan(&a.ID, &a.ProjectID, &a.Email, &a.PasswordHash, &a.Name, &avatar, &a.Role, &telegram,
 		&a.MaxConversations, &a.IsOnline, &a.IsActive, &lastSeen, &createdAt, &updatedAt); err != nil {
@@ -90,6 +91,16 @@ func (r *AgentRepo) GetByEmailAny(ctx context.Context, email string) ([]*models.
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+// CountSuperadmins reports how many active superadmins exist instance-wide.
+func (r *AgentRepo) CountSuperadmins(ctx context.Context) (int, error) {
+	var n int
+	err := r.db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE role = 'superadmin' AND is_active = 1`).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("counting superadmins: %w", err)
+	}
+	return n, nil
 }
 
 // List returns all agents of a project.
@@ -256,4 +267,61 @@ func (r *AgentRepo) ListWithTelegram(ctx context.Context, projectID string) ([]*
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+// CreateResetToken stores a hashed single-use password reset token.
+func (r *AgentRepo) CreateResetToken(ctx context.Context, agentID, tokenHash string, expires time.Time) error {
+	_, err := r.db.W.ExecContext(ctx, `INSERT INTO password_reset_tokens (token_hash, agent_id, expires_at, created_at)
+		VALUES (?, ?, ?, ?)`, tokenHash, agentID, models.FormatTime(expires), models.NowStr())
+	if err != nil {
+		return fmt.Errorf("creating reset token: %w", err)
+	}
+	return nil
+}
+
+// ConsumeResetToken validates and burns a token, returning the agent id.
+func (r *AgentRepo) ConsumeResetToken(ctx context.Context, tokenHash string) (string, error) {
+	tx, err := r.db.W.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin reset transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var (
+		agentID string
+		expires models.NullTime
+		used    models.NullTime
+	)
+	err = tx.QueryRowContext(ctx, `SELECT agent_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = ?`, tokenHash).
+		Scan(&agentID, &expires, &used)
+	if err != nil {
+		return "", repoErrNotFound(err)
+	}
+	if used.Valid || expires.Time.Before(time.Now().UTC()) {
+		return "", repoErrNotFound(nil)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE password_reset_tokens SET used_at = ? WHERE token_hash = ?`, models.NowStr(), tokenHash); err != nil {
+		return "", fmt.Errorf("burning reset token: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("committing reset token: %w", err)
+	}
+	return agentID, nil
+}
+
+// PurgeResetTokens removes expired tokens (hourly janitor).
+func (r *AgentRepo) PurgeResetTokens(ctx context.Context) (int64, error) {
+	res, err := r.db.W.ExecContext(ctx, `DELETE FROM password_reset_tokens WHERE expires_at < ? OR used_at IS NOT NULL`, models.NowStr())
+	if err != nil {
+		return 0, fmt.Errorf("purging reset tokens: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+func repoErrNotFound(err error) error {
+	if err == nil || err == sql.ErrNoRows {
+		return ErrNotFound
+	}
+	return err
 }

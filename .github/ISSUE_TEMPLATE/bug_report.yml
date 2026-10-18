@@ -1,0 +1,49 @@
+name: Bug report
+description: گزارش خطا در EveChat
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        لطفاً پیش از ثبت، `evechat doctor --verbose` را اجرا کنید و خروجی مرتبط را قرار دهید.
+        اطلاعات حساس (توکن، رمز، محتوای پیام) را حذف کنید.
+  - type: input
+    id: version
+    attributes:
+      label: نسخه
+      description: خروجی `evechat version`
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: روش نصب
+      options: [install.sh, Docker, سورس (make build), آفلاین, Windows]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: گام‌های بازتولید
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: رفتار انتظاری
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: رفتار واقعی / لاگ‌ها
+      render: shell
+  - type: textarea
+    id: doctor
+    attributes:
+      label: خروجی doctor (اختیاری)
+      render: shell

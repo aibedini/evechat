@@ -1,0 +1,9 @@
+config:
+  blank_issues_enabled: false
+  contact_links:
+    - name: مستندات فارسی
+      url: https://github.com/aibedini/evechat/blob/main/README.fa.md
+      about: نصب، پیکربندی، مسیریابی و عیب‌یابی
+    - name: گزارش امنیتی
+      url: https://github.com/aibedini/evechat/security/advisories/new
+      about: لطفاً آسیب‌پذیری‌ها را عمومی منتشر نکنید

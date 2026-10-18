@@ -1,0 +1,46 @@
+groups:
+  - name: evechat
+    rules:
+      - alert: EveChatDown
+        expr: up{job="evechat"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "EveChat در دسترس نیست"
+          description: "هیچ پاسخ سالمی از {{ $labels.instance }} در ۲ دقیقه دریافت نشد."
+
+      - alert: EveChatSlowResponses
+        expr: histogram_quantile(0.95, sum(rate(evechat_http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 پاسخ‌ها بیش از ۱ ثانیه"
+          description: "بررسی کنید دیسک یا CPU اشباع نشده باشد."
+
+      - alert: EveChatRateLimited
+        expr: sum(rate(evechat_rate_limited_total[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "نرخ بالای محدودسازی درخواست"
+          description: "احتمال حمله یا تنظیم نادرست ratelimit."
+
+      - alert: EveChatMemoryHigh
+        expr: evechat_memory_bytes{kind="sys"} > 200 * 1024 * 1024
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "مصرف حافظه بیش از ۲۰۰ مگابایت"
+          description: "وب‌سوکت‌های زیاد یا نشتی احتمالی؛ /api/v1/health و hub را بررسی کنید."
+
+      - alert: EveChatSlowClientsDropped
+        expr: increase(evechat_ws_clients_dropped_total[15m]) > 20
+        labels:
+          severity: info
+        annotations:
+          summary: "حذف کلاینت‌های کند"
+          description: "شبکه کاربران یا اندازه send_buffer را بررسی کنید."

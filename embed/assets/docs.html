@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EveChat API</title>
+  <link rel="stylesheet" href="/assets/fonts/vazirmatn.css" />
+  <style>
+    body { margin: 0; background: #0b1220; color: #e2e8f0; font-family: Vazirmatn, Tahoma, sans-serif; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.sub { color: #94a3b8; font-size: 13px; margin: 0 0 24px; }
+    .row { border: 1px solid #1f2c44; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; background: #111c2e; }
+    .method { display: inline-block; min-width: 52px; text-align: center; border-radius: 6px; font-size: 11px; font-weight: 700; padding: 2px 6px; margin-inline-end: 8px; }
+    .get { background: #1d4ed8; } .post { background: #047857; } .put { background: #b45309; } .delete { background: #b91c1c; }
+    code { direction: ltr; font-family: ui-monospace, monospace; font-size: 12px; }
+    .summary { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    a { color: #60a5fa; }
+    .note { margin-top: 24px; font-size: 12px; color: #94a3b8; line-height: 2; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>EveChat API</h1>
+    <p class="sub">REST endpoints · <a href="/api/openapi.yaml">openapi.yaml</a> · WebSocket/SSE در <a href="/docs/API.md">docs/API.md</a></p>
+    <div id="list"><p class="sub">در حال بارگذاری…</p></div>
+    <div class="note">
+      احراز هویت: <code>Authorization: Bearer &lt;jwt&gt;</code> برای پنل،
+      <code>X-Project-Key</code> برای ویجت، توکن نشست برای مسیرهای ویجت.
+      خطاها: <code>{code, message}</code>.
+    </div>
+  </div>
+  <script>
+    fetch("/api/openapi.yaml")
+      .then((r) => r.text())
+      .then((text) => {
+        const lines = text.split("\n");
+        const out = [];
+        let inPaths = false;
+        let current = "";
+        let summary = "";
+        for (const line of lines) {
+          if (line.startsWith("paths:")) { inPaths = true; continue; }
+          if (!inPaths) continue;
+          const pathMatch = line.match(/^  (\/\S+):\s*$/);
+          if (pathMatch) { current = pathMatch[1]; summary = ""; continue; }
+          const methodMatch = line.match(/^    (get|post|put|delete|patch):\s*$/);
+          if (methodMatch) {
+            out.push({ path: current, method: methodMatch[1].toUpperCase(), summary: "" });
+            continue;
+          }
+          const summaryMatch = line.match(/^      summary:\s*(.+)$/);
+          if (summaryMatch && out.length) out[out.length - 1].summary = summaryMatch[1];
+        }
+        const list = document.getElementById("list");
+        list.innerHTML = out
+          .map(
+            (e) =>
+              `<div class="row"><span class="method ${e.method.toLowerCase()}">${e.method}</span>` +
+              `<code>${e.path}</code><div class="summary">${e.summary || ""}</div></div>`
+          )
+          .join("");
+        if (!out.length) list.innerHTML = "<p class='sub'>لیست مسیرها خالی است.</p>";
+      })
+      .catch(() => {
+        document.getElementById("list").innerHTML = "<p class='sub'>خطا در بارگذاری OpenAPI.</p>";
+      });
+  </script>
+</body>
+</html>

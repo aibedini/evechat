@@ -1,0 +1,372 @@
+openapi: 3.1.0
+info:
+  title: EveChat API
+  version: 1.1.0
+  description: |
+    EveChat REST and WebSocket API. All bodies are JSON and all timestamps are
+    RFC3339 UTC. Errors use {code, message}. WebSocket and SSE endpoints are
+    documented in docs/API.md because OpenAPI cannot describe them fully.
+servers:
+  - url: https://chat.example.com
+security: []
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    projectKey:
+      type: apiKey
+      in: header
+      name: X-Project-Key
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: {}
+    Envelope:
+      type: object
+      required: [type, ts]
+      properties:
+        type: { type: string }
+        id: { type: string }
+        data: {}
+        ts: { type: integer, format: int64 }
+    Conversation:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [pending, active, resolved, closed] }
+        channel: { type: string }
+        visitor_id: { type: string }
+        assigned_agent_id: { type: [string, "null"] }
+        unread_agent: { type: integer }
+        page_url: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        conversation_id: { type: string }
+        sender_type: { type: string, enum: [visitor, agent, bot, system] }
+        content: { type: string }
+        client_message_id: { type: [string, "null"] }
+        is_internal: { type: boolean }
+        created_at: { type: string, format: date-time }
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string }
+        expires_in: { type: integer }
+paths:
+  /api/v1/health:
+    get:
+      summary: Liveness, build metadata and setup state
+      responses:
+        "200": { description: OK }
+  /api/v1/config:
+    get:
+      summary: Public runtime information
+      responses:
+        "200": { description: OK }
+  /api/setup/status:
+    get:
+      summary: First-run wizard state and preflight checks
+      responses:
+        "200": { description: OK }
+  /api/setup/check:
+    post:
+      summary: Re-run the preflight doctor
+      responses:
+        "200": { description: doctor report }
+  /api/setup/admin:
+    post:
+      summary: Create the first superadmin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "201": { description: created }
+  /api/setup/project:
+    post:
+      summary: Configure the first project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                domains:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: OK }
+  /api/setup/integrations:
+    post:
+      summary: Store (encrypted) integration settings and test them
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                telegram: { type: object, properties: { token: { type: string }, secret: { type: string } } }
+                eve: { type: object, properties: { base_url: { type: string }, api_key: { type: string }, secret: { type: string } } }
+                gmweb: { type: object, properties: { base_url: { type: string }, api_key: { type: string } } }
+                ai: { type: object, properties: { api_key: { type: string }, model: { type: string } } }
+                smtp: { type: object }
+      responses:
+        "200": { description: OK }
+  /api/setup/test/{kind}:
+    post:
+      summary: Test one integration without saving it
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { type: string, enum: [telegram, eve, gmweb, ai, smtp] }
+      responses:
+        "200": { description: "{ok, message}" }
+  /api/setup/complete:
+    post:
+      summary: Finish setup and receive an access token
+      responses:
+        "200": { description: OK }
+  /api/v1/auth/login:
+    post:
+      summary: Sign in
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+                project_key: { type: string }
+      responses:
+        "200":
+          description: token pair + agent + project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenPair" }
+        "401": { description: invalid credentials }
+  /api/v1/auth/refresh:
+    post:
+      summary: Rotate a refresh token
+      responses:
+        "200": { description: OK }
+  /api/v1/auth/forgot:
+    post:
+      summary: Request a password-reset email (always 200)
+      responses:
+        "200": { description: OK }
+  /api/v1/auth/reset:
+    post:
+      summary: Consume a reset token
+      responses:
+        "200": { description: OK }
+  /api/v1/auth/me:
+    get:
+      security: [{ bearer: [] }]
+      summary: Current agent and project
+      responses:
+        "200": { description: OK }
+  /api/v1/conversations:
+    get:
+      security: [{ bearer: [] }]
+      summary: Inbox page
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: agent, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        "200": { description: "{data, total, limit, offset}" }
+  /api/v1/conversations/{id}:
+    get:
+      security: [{ bearer: [] }]
+      summary: Conversation with visitor, agent and last messages
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+  /api/v1/conversations/{id}/messages:
+    get:
+      security: [{ bearer: [] }]
+      summary: Decrypted message history
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+    post:
+      security: [{ bearer: [] }]
+      summary: Send an agent message
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                client_message_id: { type: string }
+                is_internal: { type: boolean }
+      responses:
+        "200": { description: OK }
+  /api/v1/visitors:
+    get:
+      security: [{ bearer: [] }]
+      summary: Visitor table
+      responses:
+        "200": { description: OK }
+  /api/v1/agents:
+    get:
+      security: [{ bearer: [] }]
+      summary: Team list
+      responses:
+        "200": { description: OK }
+    post:
+      security: [{ bearer: [] }]
+      summary: Create an agent (admin+)
+      responses:
+        "201": { description: created }
+  /api/v1/routing-rules:
+    get:
+      security: [{ bearer: [] }]
+      summary: Routing rules, highest priority first
+      responses:
+        "200": { description: OK }
+    post:
+      security: [{ bearer: [] }]
+      summary: Create a rule
+      responses:
+        "201": { description: created }
+  /api/v1/tickets:
+    get:
+      security: [{ bearer: [] }]
+      summary: Ticket list
+      responses:
+        "200": { description: OK }
+  /api/v1/knowledge-base:
+    get:
+      security: [{ bearer: [] }]
+      summary: Articles
+      responses:
+        "200": { description: OK }
+  /api/v1/knowledge-base/search:
+    get:
+      security: [{ bearer: [] }]
+      summary: FTS5 search
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+  /api/v1/webhooks:
+    get:
+      security: [{ bearer: [] }]
+      summary: Webhooks
+      responses:
+        "200": { description: OK }
+  /api/v1/stats/overview:
+    get:
+      security: [{ bearer: [] }]
+      summary: KPI cards
+      responses:
+        "200": { description: OK }
+  /api/v1/stats/series:
+    get:
+      security: [{ bearer: [] }]
+      summary: Daily or hourly buckets
+      responses:
+        "200": { description: OK }
+  /api/v1/upload:
+    post:
+      security: [{ bearer: [] }]
+      summary: Upload an attachment (sniffed type, max 10 MB)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200": { description: "{url, name, size, mime, width, height}" }
+  /api/v1/diagnostics:
+    get:
+      security: [{ bearer: [] }]
+      summary: Doctor report (admin+)
+      responses:
+        "200": { description: OK }
+  /api/v1/audit:
+    get:
+      security: [{ bearer: [] }]
+      summary: Admin action log
+      responses:
+        "200": { description: OK }
+  /api/v1/security/blocklist:
+    get:
+      security: [{ bearer: [] }]
+      summary: Runtime blocklists and PoW difficulty
+      responses:
+        "200": { description: OK }
+    put:
+      security: [{ bearer: [] }]
+      summary: Replace runtime blocklists
+      responses:
+        "200": { description: OK }
+  /metrics:
+    get:
+      summary: Prometheus exposition (metrics.enabled + token or loopback)
+      responses:
+        "200": { description: text/plain; version=0.0.4 }
+        "404": { description: disabled }
+  /api/widget/v1/config:
+    get:
+      summary: Widget configuration
+      parameters:
+        - { name: project_key, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+  /api/widget/v1/challenge:
+    get:
+      summary: Proof-of-work challenge
+      parameters:
+        - { name: project_key, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: "{challenge, difficulty, expires_at}" }
+  /api/widget/v1/session:
+    post:
+      summary: Create or resume a visitor session (PoW required when enabled)
+      parameters:
+        - { name: project_key, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: session + conversation + last messages }
+        "403": { description: pow_required }
+  /api/widget/v1/conversations/{id}/sync:
+    get:
+      summary: Reconcile after reconnect
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: token, in: query, required: true, schema: { type: string } }
+        - { name: since, in: query, schema: { type: integer, format: int64 } }
+      responses:
+        "200": { description: "{conversation, messages, events, now}" }

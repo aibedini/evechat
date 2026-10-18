@@ -158,11 +158,11 @@ func (h *Handlers) ReorderRoutingRules(w http.ResponseWriter, r *http.Request) e
 func (h *Handlers) TestRoutingRule(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		Visitor struct {
-			DeviceType   string         `json:"device_type"`
-			Language     string         `json:"language"`
-			EVEResellerID string        `json:"eve_reseller_id"`
-			Metadata     models.JSONMap `json:"metadata"`
-			Subscription models.JSONMap `json:"subscription"`
+			DeviceType    string         `json:"device_type"`
+			Language      string         `json:"language"`
+			EVEResellerID string         `json:"eve_reseller_id"`
+			Metadata      models.JSONMap `json:"metadata"`
+			Subscription  models.JSONMap `json:"subscription"`
 		} `json:"visitor_sample"`
 		Page struct {
 			URL   string `json:"url"`

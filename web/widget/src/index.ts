@@ -117,10 +117,17 @@ function bootstrap(): void {
         text: (wc && wc.colors && wc.colors.text) || undefined,
         background: (wc && wc.colors && wc.colors.background) || undefined,
       };
+      const themeOpt = cfg.theme || "auto";
+      const dark =
+        themeOpt === "dark" ||
+        (themeOpt === "auto" && typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
       const ui = new WidgetUI(chat, {
         palette,
         position: (wc && wc.position) || cfg.position || "bottom-left",
         locale: (wc && wc.locale) || cfg.locale || "fa",
+        apiUrl: cfg.apiUrl,
+        font: cfg.font || "vazirmatn",
+        dark,
       });
       api.ui = ui;
       setupProactive(chat, ui);

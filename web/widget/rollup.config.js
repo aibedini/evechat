@@ -13,8 +13,8 @@ export default {
   plugins: [
     typescript({ tsconfig: "./tsconfig.json" }),
     terser({
-      compress: { passes: 2, drop_console: false, pure_getters: true },
-      mangle: { properties: { regex: /^_/ } },
+      compress: { passes: 3, toplevel: true, drop_console: false, pure_getters: true, unsafe_arrows: true },
+      mangle: { toplevel: true, properties: { regex: /^_/ } },
       format: { comments: false },
     }),
   ],

@@ -134,8 +134,8 @@ func (h *Handlers) AddDomain(w http.ResponseWriter, r *http.Request) error {
 		return apierr.Internal(err)
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"domain":    d,
-		"dns_hint":  "CNAME " + domain + " -> " + h.Cfg.BaseURL(),
+		"domain":   d,
+		"dns_hint": "CNAME " + domain + " -> " + h.Cfg.BaseURL(),
 	})
 	return nil
 }

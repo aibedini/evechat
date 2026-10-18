@@ -38,14 +38,14 @@ type PageInfo struct {
 
 // VisitorInput is the visitor identity sent by the host page.
 type VisitorInput struct {
-	Name         string          `json:"name"`
-	Email        string          `json:"email"`
-	Mobile       string          `json:"mobile"`
-	EVEUserID    string          `json:"eve_user_id"`
+	Name          string         `json:"name"`
+	Email         string         `json:"email"`
+	Mobile        string         `json:"mobile"`
+	EVEUserID     string         `json:"eve_user_id"`
 	EVEResellerID string         `json:"eve_reseller_id"`
-	EVEMobile    string          `json:"eve_mobile"`
-	Metadata     models.JSONMap  `json:"metadata"`
-	Subscription models.JSONMap  `json:"subscription"`
+	EVEMobile     string         `json:"eve_mobile"`
+	Metadata      models.JSONMap `json:"metadata"`
+	Subscription  models.JSONMap `json:"subscription"`
 }
 
 // SessionRequest is the input of IdentifyOrCreate.
@@ -80,15 +80,15 @@ func (s *VisitorService) IdentifyOrCreate(ctx context.Context, req SessionReques
 
 	device, osName, browser := ParseUA(req.UserAgent)
 	v := &models.Visitor{
-		ID:        id.NewPrefixed(id.PrefixVisitor),
-		ProjectID: req.ProjectID,
-		IP:        nilIfEmpty(req.IP),
-		DeviceType: nilIfEmpty(device),
-		OS:         nilIfEmpty(osName),
-		Browser:    nilIfEmpty(browser),
-		UserAgent:  nilIfEmpty(req.UserAgent),
-		Language:   nilIfEmpty(req.Language),
-		Metadata:   models.JSONMap{},
+		ID:               id.NewPrefixed(id.PrefixVisitor),
+		ProjectID:        req.ProjectID,
+		IP:               nilIfEmpty(req.IP),
+		DeviceType:       nilIfEmpty(device),
+		OS:               nilIfEmpty(osName),
+		Browser:          nilIfEmpty(browser),
+		UserAgent:        nilIfEmpty(req.UserAgent),
+		Language:         nilIfEmpty(req.Language),
+		Metadata:         models.JSONMap{},
 		SubscriptionInfo: models.JSONMap{},
 	}
 	s.merge(v, req)

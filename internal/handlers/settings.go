@@ -34,10 +34,10 @@ func (h *Handlers) UpdateProjectSettings(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 	var in struct {
-		Name     *string         `json:"name"`
-		Domains  []string        `json:"domains"`
-		Settings models.JSONMap  `json:"settings"`
-		IsActive *bool           `json:"is_active"`
+		Name     *string        `json:"name"`
+		Domains  []string       `json:"domains"`
+		Settings models.JSONMap `json:"settings"`
+		IsActive *bool          `json:"is_active"`
 	}
 	if err := bind(r, &in); err != nil {
 		return err

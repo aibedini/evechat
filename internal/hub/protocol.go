@@ -53,15 +53,15 @@ const (
 
 // Outbound agent message types.
 const (
-	TypeConversationNew     = "conversation.new"
-	TypeVisitorTyping       = "visitor.typing"
-	TypeVisitorTypingStop   = "visitor.typing.stop"
-	TypeVisitorOnline       = "visitor.online"
-	TypeVisitorOffline      = "visitor.offline"
-	TypePresenceUpdate      = "presence.update"
-	TypeStatsTick           = "stats.tick"
-	TypeMessageAck          = "message.ack"
-	TypeNoteAdded           = "note.added"
+	TypeConversationNew   = "conversation.new"
+	TypeVisitorTyping     = "visitor.typing"
+	TypeVisitorTypingStop = "visitor.typing.stop"
+	TypeVisitorOnline     = "visitor.online"
+	TypeVisitorOffline    = "visitor.offline"
+	TypePresenceUpdate    = "presence.update"
+	TypeStatsTick         = "stats.tick"
+	TypeMessageAck        = "message.ack"
+	TypeNoteAdded         = "note.added"
 )
 
 // NewEnvelope builds an envelope with a typed payload.

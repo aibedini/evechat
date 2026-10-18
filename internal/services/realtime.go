@@ -12,22 +12,35 @@ import (
 	"github.com/evechat/evechat/internal/hub"
 	"github.com/evechat/evechat/internal/models"
 	"github.com/evechat/evechat/internal/repo"
+	"github.com/evechat/evechat/internal/security"
 )
 
 // Realtime implements hub.MessageHandler: it is the bridge between websocket
 // frames and the service layer.
 type Realtime struct {
-	repo  *repo.Repo
-	hub   *hub.Hub
-	convs *ConversationService
-	msgs  *MessageService
-	ai    *AIService
-	log   zerolog.Logger
+	convThrottle *security.Throttle
+	msgThrottle  *security.Throttle
+	convLimit    int
+	msgLimit     int
+	repo         *repo.Repo
+	hub          *hub.Hub
+	convs        *ConversationService
+	msgs         *MessageService
+	ai           *AIService
+	log          zerolog.Logger
 }
 
 // NewRealtime builds the handler.
 func NewRealtime(r *repo.Repo, h *hub.Hub, convs *ConversationService, msgs *MessageService, log zerolog.Logger) *Realtime {
 	return &Realtime{repo: r, hub: h, convs: convs, msgs: msgs, log: log}
+}
+
+// SetThrottles installs the per-visitor / per-conversation abuse limits.
+func (r *Realtime) SetThrottles(conv, msg *security.Throttle, convLimit, msgLimit int) {
+	r.convThrottle = conv
+	r.msgThrottle = msg
+	r.convLimit = convLimit
+	r.msgLimit = msgLimit
 }
 
 // SetAI enables the Phase 2 assistant hook.
@@ -125,6 +138,10 @@ func (r *Realtime) OnVisitorMessage(ctx context.Context, c *hub.Client, e hub.En
 			r.sendError(c, "invalid_request", "داده‌های گفتگو نامعتبر است")
 			return nil
 		}
+		if r.convThrottle != nil && r.convLimit > 0 && r.convThrottle.Hit(c.ID) > r.convLimit {
+			r.sendError(c, "rate_limited", "تعداد گفتگوهای شما بیش از حد مجاز است")
+			return nil
+		}
 		clientMsgID := d.ClientMsg
 		if clientMsgID == "" {
 			// The envelope id is the widget's client_message_id for ack correlation.
@@ -149,9 +166,9 @@ func (r *Realtime) OnVisitorMessage(ctx context.Context, c *hub.Client, e hub.En
 		}
 		if clientMsgID != "" && msg != nil {
 			ack := hub.NewEnvelope(hub.TypeMessageSent, map[string]any{
-				"id":         msg.ID,
-				"client_id":  clientMsgID,
-				"created_at": msg.CreatedAt.UnixMilli(),
+				"id":              msg.ID,
+				"client_id":       clientMsgID,
+				"created_at":      msg.CreatedAt.UnixMilli(),
 				"conversation_id": conv.ID,
 			})
 			ack.ID = clientMsgID

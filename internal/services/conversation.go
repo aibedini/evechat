@@ -200,7 +200,7 @@ func (s *ConversationService) Assign(ctx context.Context, convID, agentID, byAge
 		"agent_name":      agent.Name,
 	}), "")
 	s.hub.ToProjectAgents(conv.ProjectID, hub.NewEnvelope(hub.TypeConversationUpdated, map[string]any{
-		"conversation_id": convID,
+		"conversation_id":   convID,
 		"assigned_agent_id": agentID,
 		"status":            conv.Status,
 	}))

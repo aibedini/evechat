@@ -369,6 +369,7 @@ type Visitor struct {
 	Metadata         JSONMap    `json:"metadata"`
 	IsBanned         bool       `json:"is_banned"`
 	BannedUntil      *time.Time `json:"banned_until,omitempty"`
+	Reputation       int        `json:"reputation"`
 	FirstSeenAt      time.Time  `json:"first_seen_at"`
 	LastSeenAt       time.Time  `json:"last_seen_at"`
 }
@@ -392,15 +393,15 @@ func (v *Visitor) DisplayName() string {
 
 // RoutingRule matches a visitor to routing targets.
 type RoutingRule struct {
-	ID         string     `json:"id"`
-	ProjectID  string     `json:"project_id"`
-	Name       string     `json:"name"`
-	Priority   int        `json:"priority"`
-	Conditions JSONMap    `json:"conditions"`
-	RouteTo    JSONMap    `json:"route_to"`
-	AutoReply  *string    `json:"auto_reply,omitempty"`
-	IsActive   bool       `json:"is_active"`
-	CreatedAt  time.Time  `json:"created_at"`
+	ID         string    `json:"id"`
+	ProjectID  string    `json:"project_id"`
+	Name       string    `json:"name"`
+	Priority   int       `json:"priority"`
+	Conditions JSONMap   `json:"conditions"`
+	RouteTo    JSONMap   `json:"route_to"`
+	AutoReply  *string   `json:"auto_reply,omitempty"`
+	IsActive   bool      `json:"is_active"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // Conversation is one chat thread.
@@ -538,15 +539,15 @@ type CannedResponse struct {
 
 // Plan is a SaaS subscription plan.
 type Plan struct {
-	ID                     string    `json:"id"`
-	Code                   string    `json:"code"`
-	Name                   string    `json:"name"`
-	PriceMonthly           int       `json:"price_monthly"`
-	MaxAgents              int       `json:"max_agents"`
-	MaxConversationsMonth  int       `json:"max_conversations_month"`
-	MaxAITokensMonth       int       `json:"max_ai_tokens_month"`
-	WidgetBranding         bool      `json:"widget_branding"`
-	CreatedAt              time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	Code                  string    `json:"code"`
+	Name                  string    `json:"name"`
+	PriceMonthly          int       `json:"price_monthly"`
+	MaxAgents             int       `json:"max_agents"`
+	MaxConversationsMonth int       `json:"max_conversations_month"`
+	MaxAITokensMonth      int       `json:"max_ai_tokens_month"`
+	WidgetBranding        bool      `json:"widget_branding"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 // TenantPlan assigns a plan to a project.

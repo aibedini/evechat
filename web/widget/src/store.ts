@@ -1,4 +1,5 @@
 import { Outbox, clientMessageID } from "./queue";
+import { solvePoW } from "./pow";
 import { TransportManager } from "./transport/transport";
 import { WsChannel } from "./transport/ws";
 import { SseChannel } from "./transport/sse";
@@ -107,9 +108,26 @@ export class Chat {
 
   private async startSession(): Promise<void> {
     const token = storageGet(sessionKey(this.cfg.projectKey)) || "";
+    let challenge = "";
+    let nonce = "";
+    try {
+      const qs = "project_key=" + encodeURIComponent(this.cfg.projectKey) + (token ? "&token=" + encodeURIComponent(token) : "");
+      const res = await fetch(`${this.api}/api/widget/v1/challenge?${qs}`, { credentials: "omit" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.challenge && data.difficulty > 0) {
+          challenge = data.challenge;
+          nonce = solvePoW(challenge, data.difficulty);
+        }
+      }
+    } catch {
+      /* the server replies pow_required and the caller retries */
+    }
     const body = {
       token,
       locale: this.cfg.locale || "fa",
+      challenge,
+      nonce,
       visitor: this.cfg.visitor || {},
       page: { url: location.href, title: document.title, referrer: document.referrer },
     };

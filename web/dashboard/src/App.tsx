@@ -4,6 +4,8 @@ import { AuthProvider, RequireAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Sidebar } from "@/components/Sidebar";
 import { LoginPage } from "@/pages/Login";
+import { ForgotPage } from "@/pages/Forgot";
+import { ResetPage } from "@/pages/Reset";
 import { InboxPage } from "@/pages/Inbox";
 import { DashboardPage } from "@/pages/Dashboard";
 import { VisitorsPage } from "@/pages/Visitors";
@@ -14,6 +16,9 @@ import { RoutingSettingsPage } from "@/pages/settings/Routing";
 import { TeamSettingsPage } from "@/pages/settings/Team";
 import { IntegrationsSettingsPage } from "@/pages/settings/Integrations";
 import { WebhooksSettingsPage } from "@/pages/settings/Webhooks";
+import { DiagnosticsPage } from "@/pages/settings/Diagnostics";
+import { ActivityPage } from "@/pages/settings/Activity";
+import { SecurityPage } from "@/pages/settings/Security";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +49,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot" element={<ForgotPage />} />
+            <Route path="/reset" element={<ResetPage />} />
             <Route
               element={
                 <RequireAuth>
@@ -61,6 +68,9 @@ export default function App() {
               <Route path="/settings/team" element={<TeamSettingsPage />} />
               <Route path="/settings/integrations" element={<IntegrationsSettingsPage />} />
               <Route path="/settings/webhooks" element={<WebhooksSettingsPage />} />
+              <Route path="/settings/security" element={<SecurityPage />} />
+              <Route path="/settings/activity" element={<ActivityPage />} />
+              <Route path="/settings/diagnostics" element={<DiagnosticsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

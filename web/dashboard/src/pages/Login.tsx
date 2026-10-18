@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,11 @@ export function LoginPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t("loading") : t("login")}
           </Button>
+          <div className="text-center text-xs">
+            <Link to="/forgot" className="text-slate-500 hover:text-brand-600">
+              رمز عبور را فراموش کرده‌اید؟
+            </Link>
+          </div>
         </form>
       </div>
     </div>

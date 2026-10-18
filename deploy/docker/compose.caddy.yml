@@ -1,0 +1,40 @@
+# EveChat + Caddy with automatic TLS.
+#   EVECHAT_DOMAIN=chat.example.com docker compose -f deploy/docker/compose.caddy.yml up -d
+services:
+  evechat:
+    image: ghcr.io/aibedini/evechat:${EVECHAT_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      EVECHAT_SERVER__PUBLIC_URL: "https://${EVECHAT_DOMAIN:?set EVECHAT_DOMAIN}"
+      EVECHAT_SERVER__TRUST_PROXY: "true"
+    volumes:
+      - evechat-data:/data
+    networks: [evechat]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [evechat]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      EVECHAT_DOMAIN: ${EVECHAT_DOMAIN:?set EVECHAT_DOMAIN}
+    command: caddy reverse-proxy --from ${EVECHAT_DOMAIN} --to evechat:3000
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [evechat]
+
+networks:
+  evechat:
+volumes:
+  evechat-data:
+  caddy-data:
+  caddy-config:

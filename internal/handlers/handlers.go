@@ -19,37 +19,47 @@ import (
 	"github.com/evechat/evechat/internal/integrations/gmweb"
 	"github.com/evechat/evechat/internal/integrations/telegram"
 	"github.com/evechat/evechat/internal/logx"
+	"github.com/evechat/evechat/internal/metrics"
 	"github.com/evechat/evechat/internal/middleware"
 	"github.com/evechat/evechat/internal/models"
 	"github.com/evechat/evechat/internal/repo"
+	"github.com/evechat/evechat/internal/runtimecfg"
 	"github.com/evechat/evechat/internal/services"
 )
 
 // Handlers holds every HTTP dependency. One instance serves the whole app.
 type Handlers struct {
-	Cfg      *config.Config
-	Log      zerolog.Logger
-	Repo     *repo.Repo
-	Hub      *hub.Hub
-	Tokens   *middleware.TokenManager
-	Enc      *crypto.Service
-	Visitors *services.VisitorService
-	Convs    *services.ConversationService
-	Msgs     *services.MessageService
-	Routing  *services.RoutingService
-	Search   *services.SearchService
-	Tickets  *services.TicketService
-	Webhooks *services.WebhookService
-	Realtime *services.Realtime
-	Notif    *services.NotificationService
-	AI       *services.AIService
-	SMS      *services.SMSChannel
-	EVE      *eve.Client
-	GMweb    *gmweb.Client
-	Telegram *telegram.Bot
+	Cfg        *config.Config
+	Log        zerolog.Logger
+	Repo       *repo.Repo
+	Hub        *hub.Hub
+	Tokens     *middleware.TokenManager
+	Enc        *crypto.Service
+	Visitors   *services.VisitorService
+	Convs      *services.ConversationService
+	Msgs       *services.MessageService
+	Routing    *services.RoutingService
+	Search     *services.SearchService
+	Tickets    *services.TicketService
+	Webhooks   *services.WebhookService
+	Realtime   *services.Realtime
+	Notif      *services.NotificationService
+	AI         *services.AIService
+	SMS        *services.SMSChannel
+	State      *runtimecfg.State
+	MetricsReg *metrics.Registry
+	Audit      *services.AuditService
+	Reset      *services.PasswordResetService
+	Email      *services.EmailChannel
+	EVE        *eve.Client
+	GMweb      *gmweb.Client
+	Telegram   *telegram.Bot
 
-	StartedAt time.Time
-	Version   string
+	StartedAt  time.Time
+	Version    string
+	Commit     string
+	BuildDate  string
+	ConfigPath string
 }
 
 // H adapts a handler returning error into an http.HandlerFunc.
@@ -218,4 +228,26 @@ func envelopePresence(agentID, name string, online bool) hub.Envelope {
 		"name":     name,
 		"online":   online,
 	})
+}
+
+// recordAudit stores an admin action with the request context (IP, user agent).
+func (h *Handlers) recordAudit(r *http.Request, projectID, action, targetType, targetID string, detail map[string]any) {
+	if h.Audit == nil {
+		return
+	}
+	in := services.AuditInput{
+		ProjectID:  projectID,
+		ActorType:  "agent",
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		IP:         middleware.ClientIP(r, h.Cfg.Server.TrustProxy),
+		UserAgent:  r.UserAgent(),
+		Detail:     detail,
+	}
+	if c := claimsOf(r); c != nil {
+		in.ActorID = c.Subject
+		in.ActorName = c.Name
+	}
+	h.Audit.Record(r.Context(), in)
 }

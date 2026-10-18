@@ -3,12 +3,15 @@ import { t } from "../i18n";
 import { createLauncher, type Launcher } from "./launcher";
 import { createComposer, type Composer } from "./composer";
 import { renderCSAT, renderMessages, renderTyping } from "./messages";
-import { styles, type Palette } from "./styles";
+import { styles, injectFont, type Palette } from "./styles";
 
 export interface UIOptions {
   palette: Partial<Palette>;
   position: string;
   locale: string;
+  apiUrl?: string;
+  font?: "vazirmatn" | "inherit" | "none";
+  dark?: boolean;
 }
 
 /** Builds the launcher and the panel inside a closed shadow root. */
@@ -29,10 +32,12 @@ export class WidgetUI {
   constructor(private chat: Chat, private opts: UIOptions) {
     this.host = document.createElement("div");
     this.host.setAttribute("data-evechat", "widget");
+    this.host.setAttribute("lang", "fa");
+    this.host.setAttribute("dir", "rtl");
     this.root = this.host.attachShadow({ mode: "open" });
 
     const style = document.createElement("style");
-    style.textContent = styles(opts.palette, opts.position);
+    style.textContent = styles(opts.palette, opts.position, !!opts.dark);
     this.root.appendChild(style);
 
     const wrap = document.createElement("div");
@@ -55,6 +60,9 @@ export class WidgetUI {
 
     this.messagesEl = document.createElement("div");
     this.messagesEl.className = "ec-msgs";
+    this.messagesEl.setAttribute("role", "log");
+    this.messagesEl.setAttribute("aria-live", "polite");
+    this.messagesEl.setAttribute("aria-relevant", "additions text");
     this.panel.appendChild(this.messagesEl);
 
     this.typingEl = document.createElement("div");
@@ -76,10 +84,13 @@ export class WidgetUI {
     this.composer.input.value = this.chat.draft();
     this.composer.input.addEventListener("input", () => this.chat.setDraft(this.composer.input.value));
 
-    const powered = document.createElement("div");
-    powered.className = "ec-powered";
-    powered.textContent = t(opts.locale).poweredBy;
-    this.panel.appendChild(powered);
+    this.root.addEventListener("keydown", (ev: Event) => {
+      const ke = ev as KeyboardEvent;
+      if (ke.key === "Escape") this.chat.setOpen(false);
+    });
+    document.addEventListener("keydown", (ev: KeyboardEvent) => {
+      if (ev.key === "Escape" && this.chat.state.open) this.chat.setOpen(false);
+    });
 
     this.mount();
     this.unsubscribe = this.chat.subscribe((s) => this.update(s));
@@ -127,15 +138,22 @@ export class WidgetUI {
 
   private update(state: ChatState): void {
     const strings = t(this.opts.locale);
+    if (state.open && !this.panel.dataset.font) {
+      this.panel.dataset.font = "1";
+      if (this.opts.font !== "none" && this.opts.font !== "inherit" && this.opts.apiUrl) {
+        injectFont(this.opts.apiUrl);
+      }
+    }
     this.panel.classList.toggle("open", state.open);
     this.launcher.el.setAttribute("aria-expanded", state.open ? "true" : "false");
     this.launcher.setUnread(state.unread);
+    this.launcher.el.setAttribute(
+      "aria-label",
+      state.unread > 0 ? `باز کردن گفتگوی پشتیبانی (${state.unread} پیام خوانده‌نشده)` : "باز کردن گفتگوی پشتیبانی"
+    );
 
     const online = this.chat.widgetConfig ? this.chat.widgetConfig.online : true;
     this.statusEl.textContent = "";
-    const dot = document.createElement("span");
-    dot.className = "ec-dot" + (online ? "" : " off");
-    this.statusEl.appendChild(dot);
     this.statusEl.appendChild(
       document.createTextNode(
         state.agentName ? state.agentName : online ? strings.title : state.connection === "open" ? strings.title : strings.connecting

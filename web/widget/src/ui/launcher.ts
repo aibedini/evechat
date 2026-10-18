@@ -1,7 +1,6 @@
 export interface Launcher {
   el: HTMLButtonElement;
   setUnread(n: number): void;
-  pulse(): void;
 }
 
 const CHAT_ICON =
@@ -16,10 +15,6 @@ export function createLauncher(onClick: () => void): Launcher {
   el.type = "button";
   el.setAttribute("aria-label", "EveChat");
   el.innerHTML = CHAT_ICON;
-
-  const pulse = document.createElement("span");
-  pulse.className = "ec-pulse";
-  el.appendChild(pulse);
 
   const badge = document.createElement("span");
   badge.className = "ec-badge";
@@ -37,23 +32,6 @@ export function createLauncher(onClick: () => void): Launcher {
         badge.classList.remove("on");
       }
     },
-    pulse() {
-      pulse.classList.remove("on");
-      // force reflow so the animation can restart
-      void pulse.offsetWidth;
-      pulse.classList.add("on");
-      setTimeout(() => pulse.classList.remove("on"), 3400);
-    },
   };
 }
 
-export function setLauncherIcon(el: HTMLButtonElement, open: boolean): void {
-  el.innerHTML = "";
-  el.insertAdjacentHTML("afterbegin", open ? CLOSE_ICON : CHAT_ICON);
-  const pulse = document.createElement("span");
-  pulse.className = "ec-pulse";
-  el.appendChild(pulse);
-  const badge = document.createElement("span");
-  badge.className = "ec-badge";
-  el.appendChild(badge);
-}

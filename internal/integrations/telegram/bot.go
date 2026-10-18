@@ -20,9 +20,9 @@ import (
 
 // Config configures the bot.
 type Config struct {
-	Token       string
-	WebhookURL  string
-	Secret      string
+	Token        string
+	WebhookURL   string
+	Secret       string
 	DashboardURL string
 }
 
@@ -34,11 +34,11 @@ type ActionFunc func(ctx context.Context, convID string) error
 
 // Bot wraps the Telegram Bot API with rate limiting and message correlation.
 type Bot struct {
-	api         *tgbotapi.BotAPI
-	cfg         Config
-	log         zerolog.Logger
-	limiter     *rate.Limiter
-	dashboard   string
+	api       *tgbotapi.BotAPI
+	cfg       Config
+	log       zerolog.Logger
+	limiter   *rate.Limiter
+	dashboard string
 
 	mu      sync.Mutex
 	mapping map[int64]mappingEntry
