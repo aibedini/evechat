@@ -1,6 +1,6 @@
 module github.com/evechat/evechat
 
-go 1.23.0
+go 1.26.0
 
 require (
 	github.com/coder/websocket v1.8.12
@@ -17,7 +17,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/crypto v0.27.0
 	golang.org/x/term v0.24.0
-	golang.org/x/time v0.6.0
+	golang.org/x/time v0.16.0
 	modernc.org/sqlite v1.33.1
 )
 
