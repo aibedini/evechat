@@ -128,7 +128,7 @@ jobs:
           echo "tags=ghcr.io/aibedini/evechat:${ver},ghcr.io/aibedini/evechat:${major_minor},ghcr.io/aibedini/evechat:latest" >> "$GITHUB_OUTPUT"
 
       - name: build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
