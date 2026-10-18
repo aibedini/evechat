@@ -60,7 +60,7 @@ Commands issued before the bundle loads are queued and replayed.
 - Reconnect sends `sync.request` with the last server timestamp and reconciles
   by message id.
 - The Vazirmatn webfont is injected on the first panel open only (never on page
-  load) and lives outside the 12 KB bundle budget.
+  load) and lives outside the 16 KB bundle budget.
 - `Esc` closes the panel; the message list is `role="log"` + `aria-live="polite"`;
   the launcher announces its unread count.
 

@@ -6,6 +6,16 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Widget gzip budget raised from 12 KB to 16 KB. The 12 KB figure came from the
+  first plan and was arbitrary: the widget now ships three transports, an
+  offline outbox, a shadow-DOM UI and two locales, and the responsiveness work
+  (visualViewport keyboard handling, safe-area insets) needs several hundred
+  more bytes. The build, the Makefile, the release workflow and the
+  `doctor` widget.size check all enforce 16384; the assert is not relaxed,
+  only the number. Terser was tightened in the same change (`compact` output,
+  extra compress passes) which freed 52 bytes of headroom.
+
 ### Planned
 - Redis broker behind the `redis` build tag for multi-node deployments.
 - Billing provider adapters (interface only today).

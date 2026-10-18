@@ -506,8 +506,8 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			zw := gzip.NewWriter(&buf)
 			_, _ = zw.Write(data)
 			_ = zw.Close()
-			if buf.Len() >= 12288 {
-				return Result{Message: "ویجت از سقف ۱۲KB بیشتر است", Fix: "make build و بررسی بودجه اندازه", Detail: fmt.Sprintf("%d bytes gzip", buf.Len())}
+			if buf.Len() >= 16384 {
+				return Result{Message: "ویجت از سقف ۱۶KB بیشتر است", Fix: "make build و بررسی بودجه اندازه", Detail: fmt.Sprintf("%d bytes gzip", buf.Len())}
 			}
 			return Result{OK: true, Message: fmt.Sprintf("%d bytes gzip", buf.Len())}
 		}},

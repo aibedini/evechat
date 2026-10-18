@@ -31,7 +31,7 @@ git push origin main --tags
 
 Pushing the tag triggers `.github/workflows/release.yml`, which:
 
-1. builds widget (with the 12 KB gzip check), dashboard and setup wizard;
+1. builds widget (with the 16 KB gzip check), dashboard and setup wizard;
 2. cross-compiles linux/amd64, linux/arm64, linux/armv7, darwin/amd64,
    darwin/arm64 and windows/amd64;
 3. packages `evechat_<version>_<os>_<arch>.tar.gz|zip` with deploy files;

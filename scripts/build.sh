@@ -16,7 +16,7 @@ npm ci --no-audit --no-fund
 npm run build
 SIZE=$(node -e "const z=require('zlib'),fs=require('fs');process.stdout.write(String(z.gzipSync(fs.readFileSync('dist/widget.js')).length))")
 echo "    widget gzip: ${SIZE} bytes"
-[ "$SIZE" -lt 12288 ] || { echo "widget too big: $SIZE"; exit 1; }
+[ "$SIZE" -lt 16384 ] || { echo "widget too big: $SIZE (cap 16384)"; exit 1; }
 cp dist/widget.js ../../embed/widget/widget.js
 cd ../..
 

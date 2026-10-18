@@ -17,7 +17,7 @@ build: widget dashboard setup fonts go
 
 widget:
 	cd web/widget && npm ci --no-audit --no-fund && npm run build
-	@node -e "const z=require('zlib'),fs=require('fs');const n=z.gzipSync(fs.readFileSync('web/widget/dist/widget.js')).length;if(n>=12288){console.error('widget too big: '+n);process.exit(1)};console.log('widget gzip bytes: '+n)"
+	@node -e "const z=require('zlib'),fs=require('fs');const n=z.gzipSync(fs.readFileSync('web/widget/dist/widget.js')).length;if(n>=16384){console.error('widget too big: '+n);process.exit(1)};console.log('widget gzip bytes: '+n)"
 	cp web/widget/dist/widget.js embed/widget/widget.js
 
 dashboard:
