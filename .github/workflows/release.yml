@@ -101,7 +101,8 @@ jobs:
       - name: release notes
         run: |
           tag="${{ steps.v.outputs.tag }}"
-          awk -v t="$tag" 'BEGIN{p=0} /^## \[/{ if ($0 ~ t) {p=1; next} else if (p) exit } p' CHANGELOG.md > notes.md || true
+          ver="${tag#v}"
+          awk -v t="$ver" 'BEGIN{p=0} /^## \[/{ if (index($0, "[" t "]") > 0) {p=1; next} else if (p) exit } p' CHANGELOG.md > notes.md || true
           if [ ! -s notes.md ]; then echo "Release $tag" > notes.md; fi
 
       - uses: softprops/action-gh-release@v2
