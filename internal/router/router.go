@@ -175,6 +175,7 @@ func New(d Deps) http.Handler {
 		r.Get("/conversations/export", wrap(d.H.ExportConversations))
 		r.Get("/conversations/{id}", wrap(d.H.GetConversation))
 		r.Post("/conversations/{id}/assign", wrap(d.H.AssignConversation))
+		r.Post("/conversations/{id}/claim", wrap(d.H.ClaimConversation))
 		r.Post("/conversations/{id}/transfer", wrap(d.H.TransferConversation))
 		r.Post("/conversations/{id}/resolve", wrap(d.H.ResolveConversation))
 		r.Post("/conversations/{id}/reopen", wrap(d.H.ReopenConversation))

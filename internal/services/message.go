@@ -161,6 +161,18 @@ func (s *MessageService) Send(ctx context.Context, in SendInput) (*models.Messag
 	if in.SenderType == models.SenderAgent {
 		_ = s.repo.Conversations.SetFirstResponse(ctx, conv.ID, now)
 		_ = s.repo.Conversations.ClearUnread(ctx, conv.ID, "agent")
+		// A human reply is the implicit claim: the first one activates a pending
+		// conversation even when nobody assigned it explicitly.
+		if !in.IsInternal {
+			if activated, aerr := s.repo.Conversations.ActivateIfPending(ctx, conv.ID); aerr == nil && activated {
+				conv.Status = models.StatusActive
+				s.hub.ToProjectAgents(conv.ProjectID, hub.NewEnvelope(hub.TypeConversationUpdated, map[string]any{
+					"conversation_id": conv.ID,
+					"status":          models.StatusActive,
+					"activated_by":    in.SenderID,
+				}))
+			}
+		}
 	} else if in.SenderType == models.SenderVisitor {
 		_ = s.repo.Conversations.ClearUnread(ctx, conv.ID, "visitor")
 	}

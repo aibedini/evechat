@@ -108,6 +108,7 @@ const fa = {
   noSubscription: "بدون اشتراک",
   assign: "واگذاری",
   assignToMe: "به من واگذار کن",
+  claim: "برداشتن گفتگو",
   typing: "در حال تایپ…",
   connectionLost: "اتصال پنل قطع شد — تلاش برای اتصال مجدد",
   saved: "ذخیره شد",

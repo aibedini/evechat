@@ -170,6 +170,24 @@ func (h *Handlers) AssignConversation(w http.ResponseWriter, r *http.Request) er
 	return okMsg(w)
 }
 
+// ClaimConversation takes a pending conversation for the calling agent and
+// activates it. This is the self-service path; AssignConversation remains for
+// managers handing work to somebody else.
+func (h *Handlers) ClaimConversation(w http.ResponseWriter, r *http.Request) error {
+	conv, err := h.Repo.Conversations.GetByID(r.Context(), chiURLParam(r, "id"))
+	if err != nil {
+		return apierr.NotFound("گفتگو یافت نشد")
+	}
+	if err := h.conversationAccess(r, conv); err != nil {
+		return err
+	}
+	claims := claimsOf(r)
+	if err := h.Convs.Claim(r.Context(), conv.ID, claims.Subject); err != nil {
+		return err
+	}
+	return okMsg(w)
+}
+
 // TransferConversation transfers the conversation with an optional note.
 func (h *Handlers) TransferConversation(w http.ResponseWriter, r *http.Request) error {
 	conv, err := h.Repo.Conversations.GetByID(r.Context(), chiURLParam(r, "id"))

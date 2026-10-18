@@ -143,7 +143,10 @@ func (r *ConversationRepo) List(ctx context.Context, projectID string, f ConvFil
 		args = append(args, f.Channel)
 	}
 	if f.RestrictToAgentID != "" {
-		where = append(where, "(c.assigned_agent_id = ? OR c.status = 'pending')")
+		// An agent sees their own conversations plus the unclaimed queue.
+		// Assignment alone takes a conversation out of the shared queue without
+		// activating it (see Assign).
+		where = append(where, "(c.assigned_agent_id = ? OR (c.status = 'pending' AND c.assigned_agent_id IS NULL))")
 		args = append(args, f.RestrictToAgentID)
 	}
 	if f.HideClosed {
@@ -188,10 +191,11 @@ func (r *ConversationRepo) List(ctx context.Context, projectID string, f ConvFil
 	return out, total, rows.Err()
 }
 
-// Assign sets the assignee and activates the conversation.
+// Assign sets the assignee. Assignment is not activation: a routed or manually
+// assigned conversation stays pending until somebody claims it or replies, which
+// keeps the "pending" queue honest (routing rules assign automatically).
 func (r *ConversationRepo) Assign(ctx context.Context, convID, agentID string) error {
-	res, err := r.db.W.ExecContext(ctx, `UPDATE conversations SET assigned_agent_id = ?,
-		status = CASE WHEN status = 'pending' THEN 'active' ELSE status END WHERE id = ?`, agentID, convID)
+	res, err := r.db.W.ExecContext(ctx, `UPDATE conversations SET assigned_agent_id = ? WHERE id = ?`, agentID, convID)
 	if err != nil {
 		return fmt.Errorf("assigning conversation: %w", err)
 	}
@@ -199,6 +203,40 @@ func (r *ConversationRepo) Assign(ctx context.Context, convID, agentID string) e
 		return ErrNotFound
 	}
 	return nil
+}
+
+// Claim atomically takes a pending conversation for agentID and activates it.
+// It reports false when the conversation is no longer pending (somebody else
+// claimed it first, or a reply already activated it), which the caller maps to
+// a conflict instead of silently reassigning.
+func (r *ConversationRepo) Claim(ctx context.Context, convID, agentID string) (bool, error) {
+	res, err := r.db.W.ExecContext(ctx, `UPDATE conversations
+		SET assigned_agent_id = ?, status = 'active'
+		WHERE id = ? AND status = 'pending' AND (assigned_agent_id IS NULL OR assigned_agent_id = ?)`,
+		agentID, convID, agentID)
+	if err != nil {
+		return false, fmt.Errorf("claiming conversation: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("claiming conversation: %w", err)
+	}
+	return n > 0, nil
+}
+
+// ActivateIfPending moves a pending conversation to active. It is the implicit
+// activation that runs on the first human reply and is a no-op afterwards.
+func (r *ConversationRepo) ActivateIfPending(ctx context.Context, convID string) (bool, error) {
+	res, err := r.db.W.ExecContext(ctx, `UPDATE conversations SET status = 'active'
+		WHERE id = ? AND status = 'pending'`, convID)
+	if err != nil {
+		return false, fmt.Errorf("activating conversation: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("activating conversation: %w", err)
+	}
+	return n > 0, nil
 }
 
 // Unassign clears the assignee.

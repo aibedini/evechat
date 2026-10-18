@@ -21,6 +21,7 @@ export function ChatPanel({
   typing,
   onSend,
   onAssign,
+  onClaim,
   onResolve,
   onReopen,
   onTransfer,
@@ -34,6 +35,7 @@ export function ChatPanel({
   typing: boolean;
   onSend: (text: string, internal: boolean) => void;
   onAssign: (agentId: string) => void;
+  onClaim: () => void;
   onResolve: () => void;
   onReopen: () => void;
   onTransfer: (agentId: string, note: string) => void;
@@ -89,6 +91,11 @@ export function ChatPanel({
         </div>
 
         <div className="ms-auto flex items-center gap-2">
+          {conversation.status === "pending" && (
+            <Button size="sm" onClick={onClaim}>
+              {t("claim")}
+            </Button>
+          )}
           <Select
             className="h-9 w-40 text-xs"
             value={conversation.assigned_agent_id || ""}

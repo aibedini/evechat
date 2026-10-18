@@ -77,6 +77,7 @@ export function InboxPage() {
   const canned = useCannedResponses();
   const send = useSendMessage();
   const assign = useConversationAction("assign");
+  const claim = useConversationAction("claim");
   const resolve = useConversationAction("resolve");
   const reopen = useConversationAction("reopen");
   const transfer = useConversationAction("transfer");
@@ -177,6 +178,7 @@ export function InboxPage() {
         typing={typing}
         onSend={onSend}
         onAssign={(agentId) => activeId && assign.mutate({ id: activeId, body: { agent_id: agentId } })}
+        onClaim={() => activeId && claim.mutate({ id: activeId })}
         onResolve={() => activeId && resolve.mutate({ id: activeId })}
         onReopen={() => activeId && reopen.mutate({ id: activeId })}
         onTransfer={(agentId, note) => activeId && transfer.mutate({ id: activeId, body: { agent_id: agentId, note } })}

@@ -71,7 +71,7 @@ export function useSendMessage() {
   });
 }
 
-export function useConversationAction(action: "assign" | "transfer" | "resolve" | "reopen") {
+export function useConversationAction(action: "assign" | "transfer" | "resolve" | "reopen" | "claim") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; body?: any }) =>

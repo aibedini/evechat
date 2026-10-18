@@ -75,9 +75,10 @@ func (s *ConversationService) Start(ctx context.Context, sess *models.VisitorSes
 		decision = Decision{Fallback: true}
 	}
 	if decision.AgentID != "" {
+		// Routing (including the capacity fallback) may pre-assign, but only a
+		// human claim or the first human reply activates the conversation.
 		agentID := decision.AgentID
 		conv.AssignedAgentID = &agentID
-		conv.Status = models.StatusActive
 	}
 	if decision.RuleID != "" {
 		ruleID := decision.RuleID
@@ -168,6 +169,55 @@ func (s *ConversationService) Start(ctx context.Context, sess *models.VisitorSes
 	return conv, first, nil
 }
 
+// Claim hands a pending conversation to the calling agent and activates it.
+// Unlike Assign it is atomic: when two agents claim at the same time only one
+// wins, and the loser gets a conflict instead of a silent reassignment.
+func (s *ConversationService) Claim(ctx context.Context, convID, agentID string) error {
+	conv, err := s.repo.Conversations.GetByID(ctx, convID)
+	if err != nil {
+		return apierr.NotFound("گفتگو یافت نشد")
+	}
+	agent, err := s.repo.Agents.GetByID(ctx, agentID)
+	if err != nil || agent.ProjectID != conv.ProjectID || !agent.IsActive {
+		return apierr.Forbidden("شما به این گفتگو دسترسی ندارید")
+	}
+	claimed, err := s.repo.Conversations.Claim(ctx, convID, agentID)
+	if err != nil {
+		return fmt.Errorf("claiming conversation: %w", err)
+	}
+	if !claimed {
+		return apierr.Conflict("این گفتگو قبلاً برداشته شده یا در حال بررسی است")
+	}
+	s.hub.JoinRoomForAgents(convID, agentID)
+	s.hub.ToConversation(convID, hub.NewEnvelope(hub.TypeAgentAssigned, map[string]any{
+		"conversation_id": convID,
+		"agent_id":        agentID,
+		"agent_name":      agent.Name,
+	}), "")
+	s.hub.ToProjectAgents(conv.ProjectID, hub.NewEnvelope(hub.TypeConversationUpdated, map[string]any{
+		"conversation_id":   convID,
+		"assigned_agent_id": agentID,
+		"status":            models.StatusActive,
+	}))
+	if s.notif != nil {
+		s.notif.Enqueue(Event{
+			Name:           EventChatAssigned,
+			ProjectID:      conv.ProjectID,
+			ConversationID: convID,
+			VisitorID:      conv.VisitorID,
+			Data: map[string]any{
+				"agent_id":     agentID,
+				"agent_name":   agent.Name,
+				"telegram_id":  strDeref(agent.TelegramID),
+				"by_agent_id":  agentID,
+				"conversation": convID,
+				"claimed":      true,
+			},
+		})
+	}
+	return nil
+}
+
 // Assign assigns an agent and notifies both sides.
 func (s *ConversationService) Assign(ctx context.Context, convID, agentID, byAgentID string) error {
 	conv, err := s.repo.Conversations.GetByID(ctx, convID)
@@ -190,9 +240,8 @@ func (s *ConversationService) Assign(ctx context.Context, convID, agentID, byAge
 		s.hub.LeaveRoomForAgents(convID, previous)
 	}
 	conv.AssignedAgentID = &agentID
-	if conv.Status == models.StatusPending {
-		conv.Status = models.StatusActive
-	}
+	// Assignment is not activation: conv.Status is deliberately left alone, so
+	// the conversation stays pending until the assignee claims or replies.
 
 	s.hub.ToConversation(convID, hub.NewEnvelope(hub.TypeAgentAssigned, map[string]any{
 		"conversation_id": convID,
