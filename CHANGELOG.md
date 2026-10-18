@@ -11,6 +11,36 @@ Versioning: [SemVer](https://semver.org/).
 - Billing provider adapters (interface only today).
 - Realtime translation of agent messages.
 
+## [1.1.3] - 2026-10-18
+
+### Fixed
+- Release matrix builds linux/armv7 through `GOARCH=arm` + `GOARM=7` (Go rejects
+  `GOARCH=armv7`) and exports the variable instead of prefixing the command, so
+  the archive now contains a 5.8 MB binary instead of metadata only.
+- Removed the `|| true` that silently published an empty armv7 artifact.
+
+## [1.1.2] - 2026-10-18
+
+### Fixed
+- `install-offline.sh` and the operational shell scripts are executable in the
+  repository, so the offline tarball can run the installer directly.
+- E2E reads `evechat doctor --json` instead of piping it, because doctor exits 2
+  when it reports warnings even with zero failures.
+- Offline E2E installs under sudo, matching the installer contract.
+
+## [1.1.1] - 2026-10-18
+
+### Fixed
+- Dockerfile cross-compiles with `TARGETOS`/`TARGETARCH`, so the arm64 image
+  contains an arm64 binary, and builds the setup wizard in the image.
+- Flags written after positional arguments are honoured (`evechat backup /path
+  --with-uploads`, `evechat user create --email …`).
+- `install.sh` restarts the service after the CLI wizard so the cached setup gate
+  does not leave a fresh install on `/setup`.
+
+### Added
+- Scheduled email jobs: `evechat job missed|digest` with systemd timers.
+- Generic audit hook records every authenticated mutation.
 ## [1.1.0] - 2026-10-18
 
 Phase 2: install, release, operations, typography and hardening.
