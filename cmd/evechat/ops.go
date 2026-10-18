@@ -834,10 +834,23 @@ func mustDB(cfg *config.Config) *db.DB {
 	return d
 }
 
-// positional separates positional arguments from flags.
+// positional separates positional arguments from flags. Go's flag package stops
+// at the first non-flag token, which would silently ignore flags written after a
+// path (e.g. `evechat backup /backup --with-uploads`), so parse in rounds.
 func positional(fs *flag.FlagSet, args []string) []string {
-	fs.Parse(args)
-	return fs.Args()
+	var out []string
+	for len(args) > 0 {
+		if err := fs.Parse(args); err != nil {
+			fatalf("%v", err)
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		out = append(out, rest[0])
+		args = rest[1:]
+	}
+	return out
 }
 
 // buildInfoForManifest keeps go vet happy about unused imports in some builds.

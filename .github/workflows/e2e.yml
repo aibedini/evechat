@@ -90,7 +90,7 @@ jobs:
       - name: install without network
         run: |
           set -euo pipefail
-          tar -xzf evechat-offline-*.tar.gz -C "$RUNNER_TEMP"
+          tar -xzf dist/evechat-offline-*.tar.gz -C "$RUNNER_TEMP"
           DIR=$(find "$RUNNER_TEMP" -maxdepth 1 -type d -name 'evechat-offline*' | head -n1)
           cd "$DIR"
           ./install-offline.sh --dir "$RUNNER_TEMP/offline-install" --no-systemd

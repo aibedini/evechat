@@ -34,9 +34,9 @@ func runUserCommand(args []string) {
 	name := fs.String("name", "", "نام")
 	role := fs.String("role", "agent", "نقش (agent|admin|superadmin)")
 	projectID := fs.String("project", "", "شناسه پروژه")
-	_ = fs.Parse(args)
+	rest := positional(fs, args)
 	sub := "list"
-	if rest := fs.Args(); len(rest) > 0 {
+	if len(rest) > 0 {
 		sub = rest[0]
 	}
 	setup.LoadDotEnv(filepath.Join(filepath.Dir(cfgPath), ".env"))
@@ -145,9 +145,9 @@ func runProjectCommand(args []string) {
 	name := fs.String("name", "", "نام پروژه")
 	domains := fs.String("domains", "", "دامنه‌ها با کاما")
 	idArg := fs.String("id", "", "شناسه پروژه")
-	_ = fs.Parse(args)
+	rest := positional(fs, args)
 	sub := "list"
-	if rest := fs.Args(); len(rest) > 0 {
+	if len(rest) > 0 {
 		sub = rest[0]
 	}
 	setup.LoadDotEnv(filepath.Join(filepath.Dir(cfgPath), ".env"))
