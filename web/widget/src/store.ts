@@ -144,7 +144,10 @@ export class Chat {
     const data = (await res.json()) as SessionResponse;
     this.token = data.token;
     storageSet(sessionKey(this.cfg.projectKey), data.token);
-    if (data.conversation) this.conversationId = data.conversation.id;
+    // A resume without a conversation means the previous thread is resolved or
+    // closed: forgetting the id makes the next message start a fresh thread
+    // instead of writing into a closed one.
+    this.conversationId = data.conversation ? data.conversation.id : "";
     for (const msg of data.messages || []) this.upsertMessage(msg);
   }
 
@@ -470,6 +473,8 @@ export class Chat {
         break;
       case "conversation.resolved":
         this.state.typing = false;
+        // The thread is over; the next message must open a new conversation.
+        this.conversationId = "";
         this.upsertMessage({
           id: "system-" + Date.now(),
           sender_type: "system",
@@ -479,6 +484,7 @@ export class Chat {
         break;
       case "conversation.updated":
         if (data.assigned_agent_id && data.agent_name) this.state.agentName = data.agent_name;
+        if (data.status === "resolved" || data.status === "closed") this.conversationId = "";
         break;
       case "csat.request":
         this.state.csatPending = true;

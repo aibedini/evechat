@@ -6,6 +6,18 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Channels (two-way webhooks)**: `channels`, `channel_identities` and
+  `webhook_inbox` tables; ten REST routes plus the public
+  `POST /api/channels/{id}/inbound`; JSONPath input mapping with a live
+  preview; ten-step ingestion (secret, rate limit, parse, map, identity,
+  conversation, encrypted message, room broadcast, outbound ack, inspector);
+  outbound delivery with the `0s/30s/2m/10m/1h/6h` ladder and a system message
+  when it gives up; a channels page with the curl generator and inbox
+  inspector. Bodies are scrubbed and kept 48 hours. See `docs/CHANNELS.fa.md`.
+- **Behaviour suite**: `web/e2e` with seven Playwright scenarios covering
+  BUG-0…BUG-4, run by the `behavior` job in `.github/workflows/e2e.yml`.
+
 ### Changed
 - Widget gzip budget raised from 12 KB to 16 KB. The 12 KB figure came from the
   first plan and was arbitrary: the widget now ships three transports, an

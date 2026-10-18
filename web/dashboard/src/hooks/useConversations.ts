@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Conversation, CannedResponse, ListResponse, Message } from "@/lib/types";
 
@@ -24,6 +24,8 @@ export function useConversations(filter: ConversationFilter) {
         },
       }),
     refetchInterval: 30000,
+    // Switching filters must not blank the list while the next page loads.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -36,6 +38,7 @@ export function useConversation(id?: string) {
         `/api/v1/conversations/${id}`
       ),
     refetchInterval: 20000,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -85,6 +85,21 @@ func (r *SessionRepo) SetActiveConv(ctx context.Context, token, convID string) e
 	return nil
 }
 
+// SetActiveConvForVisitor points every live session of a visitor at convID.
+// Conversations created over the WebSocket have no session token at hand, so
+// without this the session row keeps a NULL (or stale) active conversation.
+func (r *SessionRepo) SetActiveConvForVisitor(ctx context.Context, visitorID, convID string) error {
+	var v any
+	if convID != "" {
+		v = convID
+	}
+	_, err := r.db.W.ExecContext(ctx, `UPDATE visitor_sessions SET active_conv_id = ? WHERE visitor_id = ?`, v, visitorID)
+	if err != nil {
+		return fmt.Errorf("setting active conversation for visitor: %w", err)
+	}
+	return nil
+}
+
 // DeleteExpired removes stale sessions.
 func (r *SessionRepo) DeleteExpired(ctx context.Context) (int64, error) {
 	res, err := r.db.W.ExecContext(ctx, `DELETE FROM visitor_sessions WHERE expires_at < ?`, models.NowStr())

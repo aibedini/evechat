@@ -16,6 +16,7 @@ import { RoutingSettingsPage } from "@/pages/settings/Routing";
 import { TeamSettingsPage } from "@/pages/settings/Team";
 import { IntegrationsSettingsPage } from "@/pages/settings/Integrations";
 import { WebhooksSettingsPage } from "@/pages/settings/Webhooks";
+import { ChannelsSettingsPage } from "@/pages/settings/Channels";
 import { DiagnosticsPage } from "@/pages/settings/Diagnostics";
 import { ActivityPage } from "@/pages/settings/Activity";
 import { SecurityPage } from "@/pages/settings/Security";
@@ -24,7 +25,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      refetchOnWindowFocus: true,
+      // Realtime events keep the cache fresh; refetching every query on every
+      // tab focus caused a fetch storm that made the inbox feel stuck (BUG-4).
+      refetchOnWindowFocus: false,
       staleTime: 10000,
     },
   },
@@ -68,6 +71,7 @@ export default function App() {
               <Route path="/settings/team" element={<TeamSettingsPage />} />
               <Route path="/settings/integrations" element={<IntegrationsSettingsPage />} />
               <Route path="/settings/webhooks" element={<WebhooksSettingsPage />} />
+          <Route path="/settings/channels" element={<ChannelsSettingsPage />} />
               <Route path="/settings/security" element={<SecurityPage />} />
               <Route path="/settings/activity" element={<ActivityPage />} />
               <Route path="/settings/diagnostics" element={<DiagnosticsPage />} />

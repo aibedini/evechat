@@ -411,6 +411,27 @@ func (r *ConversationRepo) OpenForAgent(ctx context.Context, agentID string) ([]
 		return nil, fmt.Errorf("listing agent conversations: %w", err)
 	}
 	defer rows.Close()
+	return scanConversations(rows)
+}
+
+// OpenForProjectAgent returns the conversations an agent socket must subscribe
+// to: their own threads plus the unclaimed pending queue of the project. Without
+// the queue clause an agent is not in the room of a fresh conversation, so
+// message.received and the typing indicators never reach the dashboard until
+// somebody assigns it (BUG-3/BUG-4).
+func (r *ConversationRepo) OpenForProjectAgent(ctx context.Context, projectID, agentID string) ([]*models.Conversation, error) {
+	rows, err := r.db.R.QueryContext(ctx, `SELECT `+convCols+` FROM conversations
+		WHERE project_id = ? AND status IN ('pending','active')
+		  AND (assigned_agent_id = ? OR (status = 'pending' AND assigned_agent_id IS NULL))
+		ORDER BY created_at DESC`, projectID, agentID)
+	if err != nil {
+		return nil, fmt.Errorf("listing project agent conversations: %w", err)
+	}
+	defer rows.Close()
+	return scanConversations(rows)
+}
+
+func scanConversations(rows *sql.Rows) ([]*models.Conversation, error) {
 	out := make([]*models.Conversation, 0, 8)
 	for rows.Next() {
 		c, err := scanConv(rows)

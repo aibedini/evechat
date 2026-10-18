@@ -1,8 +1,48 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { agentSocket } from "@/lib/ws";
-import type { Envelope, Message } from "@/lib/types";
+import type { Conversation, Envelope, ListResponse, Message } from "@/lib/types";
 
+export interface RealtimeHandlers {
+  onMessage?(msg: Message, conversationId: string): void;
+  onTyping?(conversationId: string, agentName: string): void;
+  onTypingStop?(conversationId: string): void;
+  onConversation?(conversationId: string, status?: string): void;
+}
+
+/**
+ * Writes an incoming message into every cache that shows it. Realtime events
+ * used to invalidate three query keys per frame, which turned a busy inbox into
+ * a fetch storm; patching the cache is instant and keeps history in place
+ * (BUG-4).
+ */
+function appendMessage(qc: QueryClient, msg: Message): void {
+  if (!msg || !msg.conversation_id) return;
+  qc.setQueryData<{ conversation: Conversation; messages: Message[] } | undefined>(
+    ["conversation", msg.conversation_id],
+    (old) => {
+      if (!old || !Array.isArray(old.messages)) return old;
+      if (old.messages.some((m) => m.id === msg.id)) return old;
+      return { ...old, messages: [...old.messages, msg] };
+    }
+  );
+  qc.setQueryData<ListResponse<Message> | undefined>(["messages", msg.conversation_id], (old) => {
+    if (!old || !Array.isArray(old.data)) return old;
+    if (old.data.some((m) => m.id === msg.id)) return old;
+    return { ...old, data: [...old.data, msg], total: old.total + 1 };
+  });
+  qc.setQueriesData<ListResponse<Conversation> | undefined>({ queryKey: ["conversations"] }, (old) => {
+    if (!old || !Array.isArray(old.data)) return old;
+    const index = old.data.findIndex((c) => c.id === msg.conversation_id);
+    if (index < 0) return old;
+    const next = [...old.data];
+    next[index] = {
+      ...next[index],
+      last_message_at: typeof msg.created_at === "string" ? msg.created_at : next[index].last_message_at,
+    };
+    return { ...old, data: next };
+  });
+}
 export interface RealtimeHandlers {
   onMessage?(msg: Message, conversationId: string): void;
   onTyping?(conversationId: string, agentName: string): void;
@@ -34,8 +74,7 @@ export function useWebSocket(handlers: RealtimeHandlers = {}) {
       }),
       agentSocket.on("message.received", (msg: Message) => {
         if (!msg) return;
-        qc.invalidateQueries({ queryKey: ["conversations"] });
-        qc.invalidateQueries({ queryKey: ["messages", msg.conversation_id] });
+        appendMessage(qc, msg);
         if (msg.sender_type === "visitor") {
           handlersRef.current.onMessage?.(msg, msg.conversation_id);
         }
@@ -91,8 +130,7 @@ export function useAgentEvents(handlers: RealtimeHandlers = {}) {
       }),
       agentSocket.on("message.received", (msg: Message) => {
         if (!msg) return;
-        qc.invalidateQueries({ queryKey: ["conversations"] });
-        qc.invalidateQueries({ queryKey: ["messages", msg.conversation_id] });
+        appendMessage(qc, msg);
         if (msg.sender_type === "visitor") {
           handlersRef.current.onMessage?.(msg, msg.conversation_id);
         }

@@ -110,13 +110,21 @@ func (s *ConversationService) Start(ctx context.Context, sess *models.VisitorSes
 		_ = s.repo.Conversations.IncrementUnread(ctx, conv.ID, "agent")
 	}
 
+	// Record the active conversation on the visitor's session. The widget's
+	// normal path opens conversations over the WebSocket, where no session token
+	// is available, so fall back to updating every session of the visitor.
 	if sess != nil {
 		_ = s.repo.Sessions.SetActiveConv(ctx, sess.Token, conv.ID)
+	} else {
+		_ = s.repo.Sessions.SetActiveConvForVisitor(ctx, v.ID, conv.ID)
 	}
 	s.hub.JoinRoomForVisitor(conv.ID, conv.VisitorID)
 	if conv.AssignedAgentID != nil {
 		s.hub.JoinRoomForAgents(conv.ID, *conv.AssignedAgentID)
 	}
+	// The unclaimed queue belongs to every agent: subscribe them all so live
+	// messages and typing indicators arrive before anybody assigns the thread.
+	s.joinProjectAgents(ctx, conv.ID, conv.ProjectID)
 
 	payload := ConversationPayload{Conversation: conv, Visitor: v, Message: first}
 	s.hub.ToVisitor(v.ID, hub.NewEnvelope(hub.TypeConversationCreated, payload))
@@ -169,6 +177,37 @@ func (s *ConversationService) Start(ctx context.Context, sess *models.VisitorSes
 	return conv, first, nil
 }
 
+// joinProjectAgents subscribes every agent socket of a project to a room.
+func (s *ConversationService) joinProjectAgents(ctx context.Context, convID, projectID string) {
+	agents, err := s.repo.Agents.List(ctx, projectID)
+	if err != nil || len(agents) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(agents))
+	for _, a := range agents {
+		ids = append(ids, a.ID)
+	}
+	s.hub.JoinRoomForAgents(convID, ids...)
+}
+
+// leaveOtherAgents unsubscribes every agent of the project except keepID once a
+// conversation has an owner.
+func (s *ConversationService) leaveOtherAgents(ctx context.Context, convID, projectID, keepID string) {
+	agents, err := s.repo.Agents.List(ctx, projectID)
+	if err != nil || len(agents) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(agents))
+	for _, a := range agents {
+		if a.ID != keepID {
+			ids = append(ids, a.ID)
+		}
+	}
+	if len(ids) > 0 {
+		s.hub.LeaveRoomForAgents(convID, ids...)
+	}
+}
+
 // Claim hands a pending conversation to the calling agent and activates it.
 // Unlike Assign it is atomic: when two agents claim at the same time only one
 // wins, and the loser gets a conflict instead of a silent reassignment.
@@ -189,6 +228,7 @@ func (s *ConversationService) Claim(ctx context.Context, convID, agentID string)
 		return apierr.Conflict("این گفتگو قبلاً برداشته شده یا در حال بررسی است")
 	}
 	s.hub.JoinRoomForAgents(convID, agentID)
+	s.leaveOtherAgents(ctx, convID, conv.ProjectID, agentID)
 	s.hub.ToConversation(convID, hub.NewEnvelope(hub.TypeAgentAssigned, map[string]any{
 		"conversation_id": convID,
 		"agent_id":        agentID,
@@ -239,6 +279,7 @@ func (s *ConversationService) Assign(ctx context.Context, convID, agentID, byAge
 	if previous != "" && previous != agentID {
 		s.hub.LeaveRoomForAgents(convID, previous)
 	}
+	s.leaveOtherAgents(ctx, convID, conv.ProjectID, agentID)
 	conv.AssignedAgentID = &agentID
 	// Assignment is not activation: conv.Status is deliberately left alone, so
 	// the conversation stays pending until the assignee claims or replies.

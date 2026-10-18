@@ -53,4 +53,7 @@ const (
 	PrefixKB           = "kb"
 	PrefixWebhook      = "wh"
 	PrefixDelivery     = "whd"
+	PrefixChannel      = "ch"
+	PrefixChannelIdent = "chi"
+	PrefixInbox        = "wbi"
 )

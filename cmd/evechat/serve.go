@@ -244,6 +244,12 @@ func serve(cfg *config.Config, cfgPath string, migrateOnly, seed bool, log *zero
 
 	resetSvc := services.NewPasswordResetService(r, emailChannel, cfg.BaseURL(), cfg.Auth.BcryptCost, *log)
 
+	// Two-way channels: inbound webhooks with a per-channel/IP limit and a 48h
+	// inspector retention window.
+	channels := services.NewChannelService(r, convs, msgs, *log)
+	channels.SetThrottle(security.NewThrottle(time.Minute), 120)
+	channels.StartRetention(ctx)
+
 	H := &handlers.Handlers{
 		Cfg:        cfg,
 		Log:        *log,
@@ -258,6 +264,7 @@ func serve(cfg *config.Config, cfgPath string, migrateOnly, seed bool, log *zero
 		Search:     search,
 		Tickets:    tickets,
 		Webhooks:   webhooks,
+		Channels:   channels,
 		Realtime:   realtime,
 		Notif:      notif,
 		AI:         aiSvc,

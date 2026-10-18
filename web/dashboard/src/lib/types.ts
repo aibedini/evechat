@@ -188,3 +188,28 @@ export interface AgentStat {
 }
 
 export type Envelope = { type: string; id?: string; data?: any; ts?: number };
+export interface Channel {
+  id: string;
+  project_id: string;
+  name: string;
+  kind: string;
+  outbound_url?: string | null;
+  mapping: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChannelInboxEntry {
+  id: string;
+  channel_id?: string;
+  project_id?: string;
+  method: string;
+  remote_ip: string;
+  status: string;
+  error?: string;
+  body?: string;
+  mapped?: string;
+  conversation_id?: string;
+  received_at: string;
+}

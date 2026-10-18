@@ -42,6 +42,7 @@ type Handlers struct {
 	Search     *services.SearchService
 	Tickets    *services.TicketService
 	Webhooks   *services.WebhookService
+	Channels   *services.ChannelService
 	Realtime   *services.Realtime
 	Notif      *services.NotificationService
 	AI         *services.AIService

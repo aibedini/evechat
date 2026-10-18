@@ -398,6 +398,11 @@ func (h *Handlers) WidgetPostMessage(w http.ResponseWriter, r *http.Request) err
 	if err != nil || conv.VisitorID != sess.VisitorID {
 		return apierr.Forbidden("شما به این گفتگو دسترسی ندارید")
 	}
+	// A resolved thread is finished: the widget must open a new conversation
+	// instead of appending to a closed one (BUG-1).
+	if conv.Status == models.StatusResolved || conv.Status == models.StatusClosed {
+		return apierr.Conflict("این گفتگو بسته شده است؛ گفتگوی جدیدی آغاز کنید")
+	}
 	var in struct {
 		Content         string `json:"content"`
 		ContentType     string `json:"content_type"`

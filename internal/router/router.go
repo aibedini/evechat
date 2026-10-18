@@ -100,6 +100,9 @@ func New(d Deps) http.Handler {
 		})
 	})
 
+	// ---- public channel ingest (secret auth inside the handler) ----
+	r.Post("/api/channels/{id}/inbound", wrap(d.H.ChannelInbound))
+
 	// ---- visitor websocket (token auth inside the handler) ----
 	r.With(openCORS).Get("/ws/visitor", wrap(d.H.WSVisitor))
 
@@ -238,6 +241,18 @@ func New(d Deps) http.Handler {
 		r.Delete("/webhooks/{id}", wrap(d.H.DeleteWebhook))
 		r.Get("/webhooks/{id}/deliveries", wrap(d.H.ListWebhookDeliveries))
 		r.Post("/webhooks/{id}/test", wrap(d.H.TestWebhook))
+
+		// Two-way channels: inbound webhooks with an outbound ack ladder.
+		r.Get("/channels", wrap(d.H.ListChannels))
+		r.Post("/channels", wrap(d.H.CreateChannel))
+		r.Get("/channels/{id}", wrap(d.H.GetChannel))
+		r.Put("/channels/{id}", wrap(d.H.UpdateChannel))
+		r.Delete("/channels/{id}", wrap(d.H.DeleteChannel))
+		r.Post("/channels/{id}/rotate-secret", wrap(d.H.RotateChannelSecret))
+		r.Post("/channels/{id}/test", wrap(d.H.TestChannel))
+		r.Post("/channels/{id}/preview", wrap(d.H.PreviewChannelMapping))
+		r.Get("/channels/{id}/inbox", wrap(d.H.ListChannelInbox))
+		r.Get("/channels/{id}/curl", wrap(d.H.ChannelCurl))
 
 		r.Post("/upload", wrap(d.H.Upload))
 

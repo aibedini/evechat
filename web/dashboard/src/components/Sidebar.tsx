@@ -19,6 +19,7 @@ const settings = [
   { to: "/settings/team", label: t("team"), icon: "👤" },
   { to: "/settings/integrations", label: t("integrations"), icon: "🔌" },
   { to: "/settings/webhooks", label: t("webhooks"), icon: "🪝" },
+  { to: "/settings/channels", label: "کانال‌ها", icon: "🔀" },
   { to: "/settings/security", label: "امنیت", icon: "🛡️" },
   { to: "/settings/activity", label: "گزارش فعالیت", icon: "📜" },
   { to: "/settings/diagnostics", label: "سلامت سیستم", icon: "🩺" },

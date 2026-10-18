@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -28,6 +29,40 @@ type Realtime struct {
 	msgs         *MessageService
 	ai           *AIService
 	log          zerolog.Logger
+
+	// Typing indicators expire server-side: a visitor who closes the tab mid
+	// sentence must not leave "typing…" on the dashboard forever.
+	typingMu  sync.Mutex
+	typingSeq map[string]uint64
+}
+
+// typingTTL is how long a typing indicator lives without a refresh.
+const typingTTL = 5 * time.Second
+
+// broadcastTyping forwards an indicator and, for a start, schedules the matching
+// stop. A newer start (or an explicit stop) invalidates the pending timer.
+func (r *Realtime) broadcastTyping(convID, senderKey, typ, stopType string, payload map[string]any) {
+	r.typingMu.Lock()
+	if r.typingSeq == nil {
+		r.typingSeq = make(map[string]uint64, 16)
+	}
+	r.typingSeq[senderKey]++
+	seq := r.typingSeq[senderKey]
+	r.typingMu.Unlock()
+
+	r.hub.ToConversation(convID, hub.NewEnvelope(typ, payload), "")
+	if typ == stopType {
+		return
+	}
+	time.AfterFunc(typingTTL, func() {
+		r.typingMu.Lock()
+		current := r.typingSeq[senderKey]
+		r.typingMu.Unlock()
+		if current != seq {
+			return // superseded by a newer start or an explicit stop
+		}
+		r.hub.ToConversation(convID, hub.NewEnvelope(stopType, payload), "")
+	})
 }
 
 // NewRealtime builds the handler.
@@ -100,7 +135,10 @@ func (r *Realtime) OnAgentConnect(ctx context.Context, c *hub.Client) error {
 		return errors.New("agent inactive")
 	}
 	_ = r.repo.Agents.SetOnline(ctx, agent.ID, true)
-	convs, err := r.repo.Conversations.OpenForAgent(ctx, agent.ID)
+	// Own threads plus the unclaimed queue: a pending conversation has no
+	// assignee, so without the queue clause its room holds no agent and message
+	// and typing events never reach the dashboard (BUG-3/BUG-4).
+	convs, err := r.repo.Conversations.OpenForProjectAgent(ctx, agent.ProjectID, agent.ID)
 	if err == nil {
 		for _, conv := range convs {
 			r.hub.JoinRoom(conv.ID, c)
@@ -257,10 +295,10 @@ func (r *Realtime) OnVisitorMessage(ctx context.Context, c *hub.Client, e hub.En
 		if e.Type == hub.TypeTypingStop {
 			typ = hub.TypeVisitorTypingStop
 		}
-		r.hub.ToConversation(d.ConversationID, hub.NewEnvelope(typ, map[string]any{
+		r.broadcastTyping(d.ConversationID, "visitor|"+c.ID, typ, hub.TypeVisitorTypingStop, map[string]any{
 			"conversation_id": d.ConversationID,
 			"visitor_id":      c.ID,
-		}), c.ConnID)
+		})
 		return nil
 
 	case hub.TypeReadAck:
@@ -406,11 +444,11 @@ func (r *Realtime) OnAgentMessage(ctx context.Context, c *hub.Client, e hub.Enve
 		if e.Type == hub.TypeTypingStop {
 			typ = hub.TypeAgentTypingStop
 		}
-		r.hub.ToConversation(d.ConversationID, hub.NewEnvelope(typ, map[string]any{
+		r.broadcastTyping(d.ConversationID, "agent|"+agent.ID, typ, hub.TypeAgentTypingStop, map[string]any{
 			"conversation_id": d.ConversationID,
 			"agent_id":        agent.ID,
 			"agent_name":      agent.Name,
-		}), c.ConnID)
+		})
 		return nil
 
 	case hub.TypeConversationAssign:
