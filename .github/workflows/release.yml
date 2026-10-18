@@ -72,13 +72,15 @@ jobs:
           build() {
             goos="$1"; goarch="$2"; label="$3"; suffix="$4"; extra="${5:-}"
             name="evechat_${V}_${goos}_${label}${suffix}"
-            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" $extra \
+            if [ -n "$extra" ]; then export "$extra"; fi
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
               go build -trimpath \
               -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
               -o "dist/${name}" ./cmd/evechat
             mkdir -p "stage/${name}"
             cp "dist/${name}" evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
             cp -r deploy "stage/${name}/deploy"
+            if [ -n "$extra" ]; then unset "${extra%%=*}"; fi
             if [ "$goos" = "windows" ]; then
               (cd stage && zip -qr "../dist/${name}.zip" "${name}" && rm -rf "${name}")
             else
