@@ -29,6 +29,7 @@ import (
 	"github.com/evechat/evechat/internal/integrations/eve"
 	"github.com/evechat/evechat/internal/integrations/gmweb"
 	"github.com/evechat/evechat/internal/integrations/smtp"
+	"github.com/evechat/evechat/internal/repo"
 )
 
 // Level is the severity of a check.
@@ -273,20 +274,6 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			}
 			return Result{OK: true, Message: "0600"}
 		}},
-		{ID: "fs.disk", Name: "فضای دیسک", Level: Warn, Run: func(ctx context.Context) Result {
-			free := freeBytes(cfg.DataDir())
-			if free == 0 {
-				return Result{OK: true, Message: "نامشخص"}
-			}
-			if free < minFreeDiskBytes {
-				return Result{
-					Message: "فضای دیسک کم است",
-					Fix:     "فایل‌های قدیمی را پاک کنید یا دیسک را بزرگ‌تر کنید",
-					Detail:  humanBytes(free),
-				}
-			}
-			return Result{OK: true, Message: humanBytes(free) + " آزاد"}
-		}},
 		{ID: "db.open", Name: "اتصال پایگاه داده", Level: Fatal, Run: func(ctx context.Context) Result {
 			d, err := db.Open(cfg)
 			if err != nil {
@@ -346,6 +333,18 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			}
 			return Result{Message: "پورت اشغال است", Fix: "پورت دیگری با server.port انتخاب کنید یا سرویس مزاحم را ببندید: ss -ltnp | grep " + fmt.Sprint(cfg.Server.Port), Detail: err.Error()}
 		}},
+		{ID: "net.outbound", Name: "دسترسی خروجی", Level: Warn, Run: func(ctx context.Context) Result {
+			if !cfg.Telegram.Enabled || cfg.Telegram.BotToken == "" {
+				return Result{OK: true, Message: "بررسی نشد (تلگرام غیرفعال)"}
+			}
+			req, _ := http.NewRequestWithContext(ctx, http.MethodHead, "https://api.telegram.org", nil)
+			resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+			if err != nil {
+				return Result{Message: "api.telegram.org در دسترس نیست", Fix: "دسترسی خروجی HTTPS به api.telegram.org را باز کنید (فایروال/پروکسی)", Detail: err.Error()}
+			}
+			defer resp.Body.Close()
+			return Result{OK: true, Message: fmt.Sprintf("api.telegram.org (%d)", resp.StatusCode)}
+		}},
 		{ID: "net.publicurl", Name: "آدرس عمومی", Level: Warn, Run: func(ctx context.Context) Result {
 			u, err := url.Parse(cfg.BaseURL())
 			if err != nil || u.Host == "" {
@@ -363,6 +362,20 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				return Result{Message: fmt.Sprintf("پاسخ %d از آدرس عمومی", resp.StatusCode), Fix: "پروکسی معکوس باید /api را به همین سرویس بفرستد"}
+			}
+			// The health payload must belong to this database, otherwise the
+			// public URL points at a different installation.
+			var health struct {
+				InstanceID string `json:"instance_id"`
+			}
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			_ = json.Unmarshal(body, &health)
+			if local, ok, _ := localInstanceID(ctx, cfg); ok && health.InstanceID != "" && health.InstanceID != local {
+				return Result{
+					Message: "آدرس عمومی به نصب دیگری اشاره می‌کند",
+					Fix:     "server.public_url و DNS را بررسی کنید؛ instance_id پاسخ با این پایگاه داده یکی نیست",
+					Detail:  fmt.Sprintf("public=%s local=%s", health.InstanceID, local),
+				}
 			}
 			return Result{OK: true, Message: cfg.BaseURL()}
 		}},
@@ -526,22 +539,15 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 	}
 }
 
-// minFreeDiskBytes is the free space below which an installation is warned: a
-// SQLite database plus uploads can grow quickly and a full disk corrupts writes.
-const minFreeDiskBytes = 500 << 20
-
-// humanBytes renders a byte count with one decimal for the report.
-func humanBytes(n uint64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
+// localInstanceID reads this installation's instance id so net.publicurl can
+// tell "our own health endpoint" from "some other EveChat behind that hostname".
+func localInstanceID(ctx context.Context, cfg *config.Config) (string, bool, error) {
+	d, err := db.Open(cfg)
+	if err != nil {
+		return "", false, err
 	}
-	div, exp := uint64(unit), 0
-	for v := n / unit; v >= unit && exp < 3; v /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
+	defer d.Close()
+	return repo.New(d).Settings.Get(ctx, "instance_id")
 }
 
 func missingKeyVersions(ctx context.Context, cfg *config.Config, keys map[int][]byte) []int {
