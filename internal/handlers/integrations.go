@@ -16,6 +16,7 @@ import (
 	"github.com/evechat/evechat/internal/apierr"
 	"github.com/evechat/evechat/internal/integrations/gmweb"
 	"github.com/evechat/evechat/internal/logx"
+	"github.com/evechat/evechat/internal/pii"
 )
 
 // IntegrationStatus reports which integrations are configured.
@@ -140,7 +141,7 @@ func (h *Handlers) GMwebInbound(w http.ResponseWriter, r *http.Request) error {
 		return apierr.BadRequest("داده پیامک نامعتبر است")
 	}
 	if err := h.smsInbound(r, in.From, in.Text); err != nil {
-		logx.WithReq(r.Context()).Warn().Err(err).Str("from", mask(in.From)).Msg("sms inbound failed")
+		logx.WithReq(r.Context()).Warn().Err(err).Str("from", pii.MaskPhone(in.From)).Msg("sms inbound failed")
 	}
 	return okMsg(w)
 }
@@ -168,13 +169,6 @@ func (h *Handlers) TestSMS(w http.ResponseWriter, r *http.Request) error {
 		return apierr.Internal(err)
 	}
 	return okMsg(w)
-}
-
-func mask(p string) string {
-	if len(p) <= 6 {
-		return "***"
-	}
-	return p[:4] + "***" + p[len(p)-3:]
 }
 
 func gmwebParse(r *http.Request) (gmweb.InboundMessage, error) { return gmweb.ParseInbound(r) }

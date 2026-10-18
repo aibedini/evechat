@@ -11,6 +11,7 @@ import (
 
 	"github.com/evechat/evechat/internal/id"
 	"github.com/evechat/evechat/internal/models"
+	"github.com/evechat/evechat/internal/pii"
 	"github.com/evechat/evechat/internal/repo"
 )
 
@@ -225,13 +226,10 @@ func ParseUA(ua string) (deviceType, osName, browser string) {
 	return deviceType, osName, browser
 }
 
-// MaskPhone hides all but the first 6 and last 4 digits.
-func MaskPhone(p string) string {
-	if len(p) <= 10 {
-		return "***"
-	}
-	return p[:6] + "***" + p[len(p)-4:]
-}
+// MaskPhone hides all but the first 3 and last 2 characters of a phone number.
+// The canonical implementation lives in internal/pii so every layer masks the
+// same way.
+func MaskPhone(p string) string { return pii.MaskPhone(p) }
 
 var nonDigit = regexp.MustCompile(`\D`)
 

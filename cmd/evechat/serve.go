@@ -133,6 +133,10 @@ func serve(cfg *config.Config, cfgPath string, migrateOnly, seed bool, log *zero
 	}
 	overlayRuntimeConfig(ctx, cfg, state)
 
+	// Outbound HTTP (webhooks and integration probes) goes through this policy
+	// for the rest of the process lifetime.
+	security.Outbound = security.NewOutboundPolicy(cfg.Security.OutboundAllowHosts, cfg.Security.AllowPrivateOutbound)
+
 	// Backwards compatibility: installations created before the first-run
 	// wizard existed already have a superadmin; treat them as configured
 	// instead of locking the operator out behind /setup.

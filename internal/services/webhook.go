@@ -15,6 +15,7 @@ import (
 	"github.com/evechat/evechat/internal/id"
 	"github.com/evechat/evechat/internal/models"
 	"github.com/evechat/evechat/internal/repo"
+	"github.com/evechat/evechat/internal/security"
 )
 
 // WebhookService delivers signed webhooks with a retry schedule.
@@ -34,10 +35,10 @@ func NewWebhookService(r *repo.Repo, log zerolog.Logger) *WebhookService {
 	return &WebhookService{
 		repo: r,
 		log:  log,
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-		queue: make(chan *models.WebhookDelivery, 512),
+		// Deliveries go to operator-supplied URLs, so every hop is checked
+		// against the SSRF policy.
+		client: security.Outbound.Client(10 * time.Second),
+		queue:  make(chan *models.WebhookDelivery, 512),
 	}
 }
 

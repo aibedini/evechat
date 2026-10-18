@@ -72,23 +72,24 @@ func (s *PasswordResetService) Request(ctx context.Context, emailAddr string) er
 	return nil
 }
 
-// Reset consumes a token and sets the new password.
-func (s *PasswordResetService) Reset(ctx context.Context, token, newPassword string) error {
+// Reset consumes a token and sets the new password. It returns the id of the
+// agent whose password changed so the caller can audit the action.
+func (s *PasswordResetService) Reset(ctx context.Context, token, newPassword string) (string, error) {
 	if len(newPassword) < 8 {
-		return apierr.BadRequest("رمز عبور جدید باید حداقل ۸ کاراکتر باشد")
+		return "", apierr.BadRequest("رمز عبور جدید باید حداقل ۸ کاراکتر باشد")
 	}
 	agentID, err := s.repo.Agents.ConsumeResetToken(ctx, hashToken(token))
 	if err != nil {
-		return apierr.BadRequest("لینک بازیابی نامعتبر یا منقضی شده است")
+		return "", apierr.BadRequest("لینک بازیابی نامعتبر یا منقضی شده است")
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), s.cost)
 	if err != nil {
-		return fmt.Errorf("hashing password: %w", err)
+		return "", fmt.Errorf("hashing password: %w", err)
 	}
 	if err := s.repo.Agents.UpdatePassword(ctx, agentID, string(hash)); err != nil {
-		return fmt.Errorf("updating password: %w", err)
+		return "", fmt.Errorf("updating password: %w", err)
 	}
-	return nil
+	return agentID, nil
 }
 
 var errResetExpired = errors.New("reset token expired")

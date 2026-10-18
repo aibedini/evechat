@@ -82,6 +82,13 @@ type Config struct {
 		BlockedIPs              []string `koanf:"blocked_ips"`
 		BlockedCIDRs            []string `koanf:"blocked_cidrs"`
 		BlockedUserAgents       []string `koanf:"blocked_user_agents"`
+		// OutboundAllowHosts lists internal hosts (webhook receivers, EVE and
+		// GMweb gateways) that outbound HTTP is allowed to reach even though
+		// they resolve to private or loopback addresses.
+		OutboundAllowHosts []string `koanf:"outbound_allow_hosts"`
+		// AllowPrivateOutbound disables the outbound address filter entirely.
+		// Only for isolated networks that only talk to internal services.
+		AllowPrivateOutbound bool `koanf:"allow_private_outbound"`
 	} `koanf:"security"`
 
 	Metrics struct {
@@ -241,6 +248,7 @@ func Load(path string) (*Config, error) {
 	cfg.Security.BlockedIPs = splitCSV(cfg.Security.BlockedIPs)
 	cfg.Security.BlockedCIDRs = splitCSV(cfg.Security.BlockedCIDRs)
 	cfg.Security.BlockedUserAgents = splitCSV(cfg.Security.BlockedUserAgents)
+	cfg.Security.OutboundAllowHosts = splitCSV(cfg.Security.OutboundAllowHosts)
 	return cfg, nil
 }
 

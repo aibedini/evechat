@@ -9,6 +9,7 @@ import (
 	"github.com/evechat/evechat/internal/apierr"
 	"github.com/evechat/evechat/internal/id"
 	"github.com/evechat/evechat/internal/models"
+	"github.com/evechat/evechat/internal/security"
 )
 
 // ListWebhooks returns the project webhooks.
@@ -42,6 +43,9 @@ func (h *Handlers) CreateWebhook(w http.ResponseWriter, r *http.Request) error {
 	}
 	if !strings.HasPrefix(in.URL, "http://") && !strings.HasPrefix(in.URL, "https://") {
 		return apierr.BadRequest("آدرس webhook باید با http یا https شروع شود")
+	}
+	if err := security.ValidateOutboundURL(in.URL); err != nil {
+		return apierr.BadRequest("آدرس webhook به مقصد مجاز اشاره نمی‌کند")
 	}
 	secret := randomHex(24)
 	active := true
@@ -97,6 +101,9 @@ func (h *Handlers) UpdateWebhook(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if in.URL != "" {
+		if err := security.ValidateOutboundURL(in.URL); err != nil {
+			return apierr.BadRequest("آدرس webhook به مقصد مجاز اشاره نمی‌کند")
+		}
 		hook.URL = in.URL
 	}
 	if in.Events != nil {

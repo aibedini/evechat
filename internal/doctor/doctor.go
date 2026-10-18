@@ -273,6 +273,20 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			}
 			return Result{OK: true, Message: "0600"}
 		}},
+		{ID: "fs.disk", Name: "فضای دیسک", Level: Warn, Run: func(ctx context.Context) Result {
+			free := freeBytes(cfg.DataDir())
+			if free == 0 {
+				return Result{OK: true, Message: "نامشخص"}
+			}
+			if free < minFreeDiskBytes {
+				return Result{
+					Message: "فضای دیسک کم است",
+					Fix:     "فایل‌های قدیمی را پاک کنید یا دیسک را بزرگ‌تر کنید",
+					Detail:  humanBytes(free),
+				}
+			}
+			return Result{OK: true, Message: humanBytes(free) + " آزاد"}
+		}},
 		{ID: "db.open", Name: "اتصال پایگاه داده", Level: Fatal, Run: func(ctx context.Context) Result {
 			d, err := db.Open(cfg)
 			if err != nil {
@@ -510,6 +524,24 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			return Result{OK: true, Message: "vazirmatn-variable.woff2"}
 		}},
 	}
+}
+
+// minFreeDiskBytes is the free space below which an installation is warned: a
+// SQLite database plus uploads can grow quickly and a full disk corrupts writes.
+const minFreeDiskBytes = 500 << 20
+
+// humanBytes renders a byte count with one decimal for the report.
+func humanBytes(n uint64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := uint64(unit), 0
+	for v := n / unit; v >= unit && exp < 3; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 func missingKeyVersions(ctx context.Context, cfg *config.Config, keys map[int][]byte) []int {

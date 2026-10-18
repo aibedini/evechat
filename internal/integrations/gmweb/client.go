@@ -5,11 +5,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/evechat/evechat/internal/pii"
 )
 
 // Client sends SMS through GMweb.
@@ -55,7 +58,7 @@ func (c *Client) SendSMS(ctx context.Context, phone, text string) error {
 		}
 		backoff *= 2
 	}
-	return fmt.Errorf("gmweb: send sms to %s: %w", maskPhone(phone), lastErr)
+	return fmt.Errorf("gmweb: send sms to %s: %w", pii.MaskPhone(phone), sanitize(lastErr, phone))
 }
 
 func (c *Client) post(ctx context.Context, payload []byte) error {
@@ -112,9 +115,12 @@ func ParseInbound(r *http.Request) (InboundMessage, error) {
 	return m, nil
 }
 
-func maskPhone(p string) string {
-	if len(p) <= 6 {
-		return "***"
+// sanitize removes the raw phone number from an error string so a transport
+// error cannot leak the number into the logs.
+func sanitize(err error, phone string) error {
+	if err == nil || phone == "" {
+		return err
 	}
-	return p[:4] + "***" + p[len(p)-3:]
+	msg := strings.ReplaceAll(err.Error(), phone, pii.MaskPhone(phone))
+	return errors.New(msg)
 }

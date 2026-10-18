@@ -69,23 +69,70 @@ func (s *AuditService) Record(ctx context.Context, in AuditInput) {
 // Audit records via the package-level accessor used by handlers.
 func (s *AuditService) Audit(ctx context.Context, in AuditInput) { s.Record(ctx, in) }
 
+// Redacted is what replaces any secret value in an audit entry.
+const Redacted = "***"
+
+// secretKeyParts are matched case-insensitively anywhere in a key. Over-matching
+// is deliberate: losing a detail from the audit log is cheaper than storing a
+// credential in it.
+var secretKeyParts = []string{
+	"password", "passwd", "pwd", "secret", "token", "key",
+	"authorization", "cookie", "credential", "signature", "session",
+}
+
+func isSecretKey(k string) bool {
+	lk := strings.ToLower(k)
+	for _, part := range secretKeyParts {
+		if strings.Contains(lk, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// redact returns a copy of in with every secret-looking key replaced, recursing
+// into nested maps and slices so a secret cannot slip through inside a list.
 func redact(in map[string]any) map[string]any {
 	out := make(map[string]any, len(in))
 	for k, v := range in {
-		lk := strings.ToLower(k)
-		if strings.Contains(lk, "password") || strings.Contains(lk, "secret") ||
-			strings.Contains(lk, "token") || strings.Contains(lk, "key") ||
-			lk == "authorization" || lk == "api_key" {
-			out[k] = "***"
+		if isSecretKey(k) {
+			out[k] = Redacted
 			continue
 		}
-		if nested, ok := v.(map[string]any); ok {
-			out[k] = redact(nested)
-			continue
-		}
-		out[k] = v
+		out[k] = redactValue(v)
 	}
 	return out
+}
+
+func redactValue(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return redact(val)
+	case map[string]string:
+		out := make(map[string]string, len(val))
+		for k, s := range val {
+			if isSecretKey(k) {
+				out[k] = Redacted
+				continue
+			}
+			out[k] = s
+		}
+		return out
+	case []any:
+		out := make([]any, len(val))
+		for i, item := range val {
+			out[i] = redactValue(item)
+		}
+		return out
+	case []map[string]any:
+		out := make([]map[string]any, len(val))
+		for i, item := range val {
+			out[i] = redact(item)
+		}
+		return out
+	default:
+		return v
+	}
 }
 
 func firstNonEmptyStr(vals ...string) string {

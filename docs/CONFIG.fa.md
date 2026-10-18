@@ -56,6 +56,8 @@
 | `messages_per_conversation_per_min` | `30` | ضد اسپم پیام |
 | `conversations_per_visitor_per_hour` | `5` | سقف گفتگوی جدید |
 | `blocked_ips` / `blocked_cidrs` / `blocked_user_agents` | — | لیست سیاه اولیه (از پنل هم قابل تغییر) |
+| `outbound_allow_hosts` | — | میزبان‌های داخلی مجاز برای HTTP خروجی (وب‌هوک/درگاه‌ها) که به آدرس خصوصی resolve می‌شوند |
+| `allow_private_outbound` | `false` | غیرفعال‌کردن کامل فیلتر مقصد خروجی؛ فقط برای شبکه‌های ایزوله |
 
 ## metrics / audit / log
 

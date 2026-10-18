@@ -466,7 +466,24 @@ func runUpdateCommand(args []string) {
 	registerCommonFlags(fs, &cfgPath)
 	checkOnly := fs.Bool("check", false, "فقط بررسی وجود نسخه جدید")
 	target := fs.String("version", "", "نسخه هدف (مثلا v1.1.0)")
+	from := fs.String("from", "", "آرشیو یا باینری محلی نسخه جدید (بدون شبکه)")
 	_ = fs.Parse(args)
+
+	// --from installs a release that was fetched by hand: no GitHub call, so it
+	// also works on air-gapped installations.
+	if *from != "" {
+		if *checkOnly {
+			fatalf("--check با --from معنی ندارد")
+		}
+		tag := *target
+		if tag == "" {
+			tag = "local"
+		}
+		if err := doUpdateFromFile(context.Background(), mustConfig(cfgPath), tag, *from); err != nil {
+			fatalf("%v", err)
+		}
+		return
+	}
 
 	latest, err := latestRelease(*target)
 	if err != nil {
@@ -562,42 +579,82 @@ func doUpdate(ctx context.Context, cfg *config.Config, rel *releaseInfo) error {
 			}
 		}
 	}
+	current, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return installUpdate(ctx, cfg, rel.Tag, archivePath, current)
+}
+
+// doUpdateFromFile installs a release that was fetched by hand. It is the
+// offline/air-gapped path and the one the rollback test drives.
+func doUpdateFromFile(ctx context.Context, cfg *config.Config, tag, path string) error {
+	current, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	return installUpdate(ctx, cfg, tag, abs, current)
+}
+
+// installUpdate backs the database up, swaps targetPath for the new binary,
+// restarts the service and restores the previous binary when the new one never
+// becomes healthy.
+func installUpdate(ctx context.Context, cfg *config.Config, tag, sourcePath, targetPath string) error {
 	fmt.Println("پشتیبان‌گیری قبل از به‌روزرسانی…")
 	backupBase := filepath.Join(cfg.DataDir(), "pre-update-"+time.Now().UTC().Format("20060102-150405"))
 	if err := doBackup(ctx, cfg, backupBase, false, false); err != nil {
 		return fmt.Errorf("پشتیبان‌گیری ناموفق؛ به‌روزرسانی متوقف شد: %w", err)
 	}
 
-	newBinary := filepath.Join(tmp, "evechat")
-	if err := extractBinary(archivePath, newBinary); err != nil {
+	newBinary := sourcePath + ".new"
+	if err := stageBinary(sourcePath, newBinary); err != nil {
 		return err
 	}
-	current, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	prev := current + ".prev"
+	defer os.Remove(newBinary)
+
+	prev := targetPath + ".prev"
 	_ = os.Remove(prev)
-	if err := os.Rename(current, prev); err != nil {
+	if err := os.Rename(targetPath, prev); err != nil {
 		return fmt.Errorf("جابه‌جایی باینری فعلی: %w", err)
 	}
-	if err := copyFile(newBinary, current); err != nil {
-		_ = os.Rename(prev, current)
+	if err := copyFile(newBinary, targetPath); err != nil {
+		_ = os.Rename(prev, targetPath)
 		return err
 	}
-	_ = os.Chmod(current, 0o755)
+	_ = os.Chmod(targetPath, 0o755)
 	fmt.Println("باینری جایگزین شد؛ ری‌استارت سرویس…")
-	restartService()
-	if !waitHealthy(cfg, 20*time.Second) {
+	restartServiceFn()
+	if !waitHealthyFn(cfg, 20*time.Second) {
 		fmt.Fprintln(os.Stderr, "سلامت پس از به‌روزرسانی برقرار نشد؛ بازگردانی نسخه قبلی…")
-		_ = os.Remove(current)
-		_ = os.Rename(prev, current)
-		restartService()
+		_ = os.Remove(targetPath)
+		_ = os.Rename(prev, targetPath)
+		restartServiceFn()
 		return fmt.Errorf("به‌روزرسانی ناموفق بود و نسخه قبلی بازگردانده شد")
 	}
-	fmt.Printf("به‌روزرسانی به %s با موفقیت انجام شد.\n", rel.Tag)
+	fmt.Printf("به‌روزرسانی به %s با موفقیت انجام شد.\n", tag)
 	return nil
 }
+
+// stageBinary accepts a release archive or a plain binary file.
+func stageBinary(sourcePath, dest string) error {
+	if strings.HasSuffix(sourcePath, ".tar.gz") || strings.HasSuffix(sourcePath, ".tgz") {
+		return extractBinary(sourcePath, dest)
+	}
+	if strings.HasSuffix(sourcePath, ".zip") {
+		return fmt.Errorf("آرشیو zip پشتیبانی نمی‌شود؛ فایل اجرایی را مستقیم بدهید")
+	}
+	return copyFile(sourcePath, dest)
+}
+
+// restartServiceFn and waitHealthyFn are seams for the rollback tests.
+var (
+	restartServiceFn = restartService
+	waitHealthyFn    = waitHealthy
+)
 
 func extractBinary(archivePath, dest string) error {
 	if strings.HasSuffix(archivePath, ".zip") {

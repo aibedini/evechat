@@ -18,6 +18,7 @@ import (
 	"github.com/evechat/evechat/internal/middleware"
 	"github.com/evechat/evechat/internal/models"
 	"github.com/evechat/evechat/internal/runtimecfg"
+	"github.com/evechat/evechat/internal/security"
 )
 
 const (
@@ -210,6 +211,10 @@ func (h *Handlers) SetupProject(w http.ResponseWriter, r *http.Request) error {
 	if err := h.Repo.Projects.Update(r.Context(), project); err != nil {
 		return apierr.Internal(err)
 	}
+	h.recordAudit(r, project.ID, "setup.project_updated", "project", project.ID, map[string]any{
+		"name":    project.Name,
+		"domains": []string(project.Domains),
+	})
 	snippet := fmt.Sprintf(`<script>
   window.EveChat = { projectKey: %q, apiUrl: %q };
 </script>
@@ -266,21 +271,29 @@ func (h *Handlers) SetupIntegrations(w http.ResponseWriter, r *http.Request) err
 		results["telegram"] = testTelegram(ctx, in.Telegram.Token)
 	}
 	if in.EVE != nil && in.EVE.BaseURL != "" {
-		_ = h.State.Set(ctx, "integration.eve.base_url", in.EVE.BaseURL)
-		if in.EVE.APIKey != "" {
-			_ = h.State.SetSecret(ctx, "integration.eve.api_key", in.EVE.APIKey)
+		if err := security.Outbound.Validate(ctx, in.EVE.BaseURL); err != nil {
+			results["eve"] = map[string]any{"ok": false, "message": "آدرس EVE به مقصد مجاز اشاره نمی‌کند"}
+		} else {
+			_ = h.State.Set(ctx, "integration.eve.base_url", in.EVE.BaseURL)
+			if in.EVE.APIKey != "" {
+				_ = h.State.SetSecret(ctx, "integration.eve.api_key", in.EVE.APIKey)
+			}
+			if in.EVE.Secret != "" {
+				_ = h.State.SetSecret(ctx, "integration.eve.hmac_secret", in.EVE.Secret)
+			}
+			results["eve"] = testEVE(ctx, in.EVE.BaseURL, in.EVE.APIKey)
 		}
-		if in.EVE.Secret != "" {
-			_ = h.State.SetSecret(ctx, "integration.eve.hmac_secret", in.EVE.Secret)
-		}
-		results["eve"] = testEVE(ctx, in.EVE.BaseURL, in.EVE.APIKey)
 	}
 	if in.GMweb != nil && in.GMweb.BaseURL != "" {
-		_ = h.State.Set(ctx, "integration.gmweb.base_url", in.GMweb.BaseURL)
-		if in.GMweb.APIKey != "" {
-			_ = h.State.SetSecret(ctx, "integration.gmweb.api_key", in.GMweb.APIKey)
+		if err := security.Outbound.Validate(ctx, in.GMweb.BaseURL); err != nil {
+			results["gmweb"] = map[string]any{"ok": false, "message": "آدرس درگاه پیامک به مقصد مجاز اشاره نمی‌کند"}
+		} else {
+			_ = h.State.Set(ctx, "integration.gmweb.base_url", in.GMweb.BaseURL)
+			if in.GMweb.APIKey != "" {
+				_ = h.State.SetSecret(ctx, "integration.gmweb.api_key", in.GMweb.APIKey)
+			}
+			results["gmweb"] = testURL(ctx, in.GMweb.BaseURL)
 		}
-		results["gmweb"] = testURL(ctx, in.GMweb.BaseURL)
 	}
 	if in.AI != nil && in.AI.APIKey != "" {
 		_ = h.State.SetSecret(ctx, "integration.ai.api_key", in.AI.APIKey)
@@ -305,6 +318,14 @@ func (h *Handlers) SetupIntegrations(w http.ResponseWriter, r *http.Request) err
 		} else {
 			results["smtp"] = map[string]any{"ok": true, "message": "اتصال برقرار شد"}
 		}
+	}
+	if len(results) > 0 {
+		kinds := make([]string, 0, len(results))
+		for kind := range results {
+			kinds = append(kinds, kind)
+		}
+		h.recordAudit(r, h.State.Value(settingSetupProjectID), "setup.integrations_saved", "settings", "integrations",
+			map[string]any{"configured": kinds})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "results": results})
 	return nil
@@ -413,11 +434,14 @@ func testEVE(ctx context.Context, baseURL, apiKey string) map[string]any {
 	if baseURL == "" {
 		return map[string]any{"ok": false, "message": "آدرس EVE لازم است"}
 	}
+	if err := security.Outbound.Validate(ctx, baseURL); err != nil {
+		return map[string]any{"ok": false, "message": "آدرس EVE به مقصد مجاز اشاره نمی‌کند"}
+	}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/user/0000000000", nil)
 	if apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
-	resp, err := (&http.Client{Timeout: 6 * time.Second}).Do(req)
+	resp, err := security.Outbound.Client(6 * time.Second).Do(req)
 	if err != nil {
 		return map[string]any{"ok": false, "message": "EVE پاسخ نداد"}
 	}
@@ -432,8 +456,11 @@ func testURL(ctx context.Context, rawURL string) map[string]any {
 	if rawURL == "" {
 		return map[string]any{"ok": false, "message": "آدرس لازم است"}
 	}
+	if err := security.Outbound.Validate(ctx, rawURL); err != nil {
+		return map[string]any{"ok": false, "message": "آدرس به مقصد مجاز اشاره نمی‌کند"}
+	}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(rawURL, "/"), nil)
-	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+	resp, err := security.Outbound.Client(5 * time.Second).Do(req)
 	if err != nil {
 		return map[string]any{"ok": false, "message": "اتصال برقرار نشد"}
 	}

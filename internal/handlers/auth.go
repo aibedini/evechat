@@ -85,6 +85,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) error {
 	}
 	_ = h.Repo.Agents.TouchSeen(ctx, agent.ID)
 	logx.WithReq(ctx).Info().Str("agent_id", agent.ID).Msg("login succeeded")
+	h.recordAudit(r, agent.ProjectID, "auth.login", "agent", agent.ID, map[string]any{"email": agent.Email})
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"access_token":  pair.AccessToken,
@@ -253,8 +254,12 @@ func (h *Handlers) ResetPassword(w http.ResponseWriter, r *http.Request) error {
 	if h.Reset == nil {
 		return apierr.BadRequest("بازیابی رمز فعال نیست")
 	}
-	if err := h.Reset.Reset(r.Context(), in.Token, in.Password); err != nil {
+	agentID, err := h.Reset.Reset(r.Context(), in.Token, in.Password)
+	if err != nil {
 		return err
+	}
+	if agent, aerr := h.Repo.Agents.GetByID(r.Context(), agentID); aerr == nil {
+		h.recordAudit(r, agent.ProjectID, "auth.password_reset", "agent", agent.ID, nil)
 	}
 	return okMsg(w)
 }

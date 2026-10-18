@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/evechat/evechat/internal/crypto"
+	"github.com/evechat/evechat/internal/pii"
 )
 
 // User is the EVE profile of a mobile number.
@@ -66,7 +67,7 @@ func (c *Client) GetUserByMobile(ctx context.Context, mobile string) (*User, err
 			break
 		}
 	}
-	return nil, fmt.Errorf("eve: get user %s: %w", mobile, lastErr)
+	return nil, fmt.Errorf("eve: get user %s: %w", pii.MaskPhone(mobile), sanitizeMobile(lastErr, mobile))
 }
 
 func (c *Client) get(ctx context.Context, endpoint string) (*User, error) {
@@ -107,6 +108,23 @@ func (c *Client) VerifySignedContext(payload []byte, ts int64, sig string) bool 
 		return false
 	}
 	return crypto.VerifyEVEContext(c.hmacSecret, payload, ts, sig, 5*time.Minute)
+}
+
+// sanitizeMobile strips the raw mobile number (and its path-escaped form) from
+// an error chain. Transport errors embed the full request URL, which would
+// otherwise put the number into every log line that prints the error.
+func sanitizeMobile(err error, mobile string) error {
+	if err == nil || strings.TrimSpace(mobile) == "" {
+		return err
+	}
+	masked := pii.MaskPhone(mobile)
+	msg := err.Error()
+	for _, raw := range []string{mobile, url.PathEscape(mobile), url.QueryEscape(mobile)} {
+		if raw != "" {
+			msg = strings.ReplaceAll(msg, raw, masked)
+		}
+	}
+	return errors.New(msg)
 }
 
 func truncate(s string, n int) string {
