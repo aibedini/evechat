@@ -12,7 +12,7 @@ The installer verifies checksums, creates a system user, generates secrets, inst
 
 ## What it is
 
-- **Backend:** Go 1.23, chi, coder/websocket, SQLite WAL (CGO-free), AES-256-GCM message encryption, ULIDs, FTS5 knowledge base.
+- **Backend:** Go 1.26, chi, coder/websocket, SQLite WAL (CGO-free), AES-256-GCM message encryption, ULIDs, FTS5 knowledge base.
 - **Widget:** vanilla TypeScript, Shadow DOM, WebSocket → SSE → long-poll fallback, IndexedDB outbox, 12.2 KB gzip (budget 16 KB), self-hosted Vazirmatn injected on first open.
 - **Dashboard:** React 18 + Vite + Tailwind, Persian RTL, Jalali dates, realtime inbox, visitors, tickets Kanban, knowledge base, audit/health/security settings, dark mode.
 - **Ops:** `evechat setup|doctor|backup|restore|update|key|user|project`, Prometheus metrics, proof-of-work abuse protection, SMTP + password reset, audit log, offline install bundle, multi-arch container image.

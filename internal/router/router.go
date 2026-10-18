@@ -38,7 +38,11 @@ type Deps struct {
 func New(d Deps) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(chimw.RealIP)
+	// Deliberately no chimw.RealIP: it rewrites r.RemoteAddr from
+	// X-Forwarded-For on every request, so an unauthenticated caller could pick
+	// its own IP and bypass the rate limiters, the IP blocklist, the setup
+	// wizard's loopback check and the /demo/test gate. middleware.ClientIP
+	// honours the proxy headers itself, and only when server.trust_proxy is on.
 	r.Use(middleware.Recover)
 	r.Use(middleware.RequestID)
 	r.Use(requestLogger(d.Log))
