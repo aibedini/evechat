@@ -1,0 +1,21 @@
+import { chromium } from "playwright-core";
+const browser = await chromium.launch({ channel: "chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto("http://127.0.0.1:3000/login", { waitUntil: "networkidle" });
+await page.fill("#email", "admin@evechat.local");
+await page.fill("#password", process.argv[2]);
+await page.click('button[type="submit"]');
+await page.waitForURL("**/inbox");
+await page.waitForTimeout(2000);
+await page.getByText("Smoke Visitor").first().click();
+await page.waitForTimeout(1500);
+const spans = await page.locator(".text-\\[10px\\]").allInnerTexts();
+console.log("small texts:", spans.slice(0, 12));
+const divider = await page.locator('div.my-3').first().innerText().catch(() => "none");
+console.log("divider:", JSON.stringify(divider));
+const raw = await page.evaluate(() => {
+  const el = document.querySelector('div.my-3');
+  return el ? el.outerHTML.slice(0, 400) : "none";
+});
+console.log(raw);
+await browser.close();

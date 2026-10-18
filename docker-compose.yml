@@ -1,0 +1,61 @@
+services:
+  evechat:
+    image: evechat:latest
+    build: .
+    container_name: evechat
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - evechat-data:/data
+      - ./evechat.yaml:/data/evechat.yaml:ro
+    environment:
+      EVECHAT_AUTH__JWT_SECRET: ${EVECHAT_AUTH__JWT_SECRET:?set a strong JWT secret}
+      EVECHAT_ENCRYPTION_KEY_V1: ${EVECHAT_ENCRYPTION_KEY_V1:?set a base64 32-byte key}
+      EVECHAT_SERVER__PUBLIC_URL: ${EVECHAT_PUBLIC_URL:-http://localhost:3000}
+      EVECHAT_TELEGRAM__BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      EVECHAT_TELEGRAM__WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      EVECHAT_TELEGRAM__SECRET: ${TELEGRAM_SECRET:-}
+      EVECHAT_TELEGRAM__ENABLED: ${TELEGRAM_ENABLED:-false}
+      EVECHAT_AI__ENABLED: ${AI_ENABLED:-false}
+      EVECHAT_AI__CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "/evechat", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional TLS terminator. Uncomment and point your DNS at this host.
+  # caddy:
+  #   image: caddy:2-alpine
+  #   restart: unless-stopped
+  #   ports: ["80:80", "443:443"]
+  #   command: caddy reverse-proxy --from chat.example.com --to evechat:3000
+  #   volumes:
+  #     - caddy-data:/data
+  #     - caddy-config:/config
+  #   depends_on: [evechat]
+  #
+  # nginx alternative:
+  #   location / {
+  #     proxy_pass http://evechat:3000;
+  #     proxy_http_version 1.1;
+  #     proxy_set_header Upgrade $http_upgrade;
+  #     proxy_set_header Connection "upgrade";
+  #     proxy_read_timeout 3600s;
+  #   }
+
+volumes:
+  evechat-data:
+  # caddy-data:
+  # caddy-config:

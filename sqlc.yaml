@@ -1,0 +1,15 @@
+version: "2"
+# sqlc is not used by the runtime: every query in internal/repo is hand-written
+# database/sql. This file exists so the schema can be code-generated later
+# without re-arranging the project.
+sql:
+  - engine: "sqlite"
+    schema: "internal/db/migrations"
+    queries: "internal/repo/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/repo/sqlcgen"
+        emit_json_tags: true
+        emit_empty_slices: true
+        emit_interface: false

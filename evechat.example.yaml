@@ -1,0 +1,78 @@
+# EveChat configuration reference.
+# Copy to evechat.yaml and fill in the secrets. Keys (JWT / encryption) are
+# never stored in YAML: use environment variables for them.
+server:
+  host: "0.0.0.0"
+  port: 3000
+  public_url: "https://chat.example.com"
+  trust_proxy: true
+  read_timeout: "15s"
+  write_timeout: "15s"
+  shutdown_timeout: "20s"
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+    acme_domain: ""
+    acme_cache: "/data/acme"
+
+database:
+  path: "/data/evechat.db"
+  max_open_conns: 1
+  max_read_conns: 4
+  busy_timeout_ms: 5000
+
+storage:
+  uploads_dir: "/data/uploads"
+  max_file_size_mb: 10
+
+auth:
+  jwt_secret: "" # REQUIRED: set EVECHAT_AUTH__JWT_SECRET instead
+  access_expiry: "24h"
+  refresh_expiry: "720h"
+  bcrypt_cost: 12
+
+encryption:
+  current_version: 1
+  # Keys live in the environment only:
+  # EVECHAT_ENCRYPTION_KEY_V1=<base64 of 32 random bytes>
+
+hub:
+  ping_interval_seconds: 30
+  pong_wait_seconds: 90
+  send_buffer_size: 256
+  ring_buffer_size: 50
+  max_message_bytes: 32768
+
+ratelimit:
+  widget_session_per_min: 10
+  message_per_min: 60
+  login_per_min: 5
+
+telegram:
+  bot_token: ""
+  webhook_url: ""
+  secret: ""
+  enabled: false
+
+integrations:
+  eve:
+    base_url: ""
+    api_key: ""
+    hmac_secret: ""
+    require_signature: false
+  gmweb:
+    base_url: ""
+    api_key: ""
+    webhook_secret: ""
+
+ai:
+  enabled: false
+  claude_api_key: ""
+  model: "claude-haiku-4-5"
+  max_tokens: 512
+  handoff_after: 3
+
+log:
+  level: "info"
+  pretty: false

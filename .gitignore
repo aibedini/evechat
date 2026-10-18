@@ -1,0 +1,33 @@
+# Built binary and local state
+/evechat
+/evechat.exe
+/*~
+/data/
+/evechat.yaml
+/.env
+/.env.*
+!.env.example
+/seed.log
+/server.log
+/server.out
+/server.err
+/.token
+/.wtoken
+
+# Go
+*.test
+*.out
+coverage.txt
+
+# Node
+node_modules/
+web/widget/dist/
+web/dashboard/dist/
+web/dashboard/.vite/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,14 @@
+import { chromium } from "playwright-core";
+const browser = await chromium.launch({ channel: "chrome", headless: true });
+const page = await browser.newPage();
+const logs = [];
+page.on("console", (m) => logs.push(m.type() + ": " + m.text()));
+page.on("pageerror", (e) => logs.push("pageerror: " + e.message));
+page.on("requestfailed", (r) => logs.push("reqfail: " + r.url() + " " + r.failure()?.errorText));
+await page.goto("http://127.0.0.1:3000/login", { waitUntil: "load", timeout: 30000 });
+await page.waitForTimeout(2000);
+console.log("url:", page.url());
+console.log("body:", (await page.locator("body").innerText()).slice(0, 300));
+console.log("html:", (await page.content()).slice(0, 500));
+console.log("logs:", logs.slice(0, 12));
+await browser.close();
