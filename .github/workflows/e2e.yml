@@ -76,7 +76,9 @@ jobs:
           ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz" --dry-run
           rm -f "$DIR/data/evechat.db"*
           ./evechat --config "$DIR/evechat.yaml" restore "$DIR/backup.tar.gz"
-          ./evechat --config "$DIR/evechat.yaml" doctor --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const r=JSON.parse(s);console.log(r.summary);if(r.summary.fail>0)process.exit(1)})"
+          # doctor exits 2 when it only finds warnings; the JSON decides.
+          ./evechat --config "$DIR/evechat.yaml" doctor --json > doctor.json || true
+          node -e "const r=require('./doctor.json'); console.log(r.summary); if (r.summary.fail > 0) process.exit(1)"
 
   offline-bundle:
     runs-on: ubuntu-latest
