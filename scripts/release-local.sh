@@ -9,8 +9,8 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 mkdir -p dist stage
 
 build() {
-  local goos="$1" goarch="$2" suffix="$3" extra="${4:-}"
-  local name="evechat_${VER}_${goos}_${goarch}${suffix}"
+  local goos="$1" goarch="$2" label="$3" suffix="$4" extra="${5:-}"
+  local name="evechat_${VER}_${goos}_${label}${suffix}"
   echo "==> ${name}"
   CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" $extra \
     go build -trimpath \
@@ -28,12 +28,12 @@ build() {
   rm -rf "stage/${name}"
 }
 
-build linux amd64 ""
-build linux arm64 ""
-GOARM=7 build linux armv7 "" "GOARM=7" || echo "warn: armv7 build skipped"
-build darwin amd64 ""
-build darwin arm64 ""
-build windows amd64 ".exe"
+build linux amd64 amd64 ""
+build linux arm64 arm64 ""
+build linux arm armv7 "" "GOARM=7"
+build darwin amd64 amd64 ""
+build darwin arm64 arm64 ""
+build windows amd64 amd64 ".exe"
 
 cp embed/widget/widget.js dist/widget.js 2>/dev/null || true
 (cd dist && sha256sum * > checksums.txt)

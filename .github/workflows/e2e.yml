@@ -95,4 +95,4 @@ jobs:
           tar -xzf dist/evechat-offline-*.tar.gz -C "$RUNNER_TEMP"
           DIR=$(find "$RUNNER_TEMP" -maxdepth 1 -type d -name 'evechat-offline*' | head -n1)
           cd "$DIR"
-          ./install-offline.sh --dir "$RUNNER_TEMP/offline-install" --no-systemd
+          sudo ./install-offline.sh --dir "$RUNNER_TEMP/offline-install" --no-systemd

@@ -70,8 +70,8 @@ jobs:
           mkdir -p dist
           V="${VERSION#v}"
           build() {
-            goos="$1"; goarch="$2"; suffix="$3"; extra="${4:-}"
-            name="evechat_${V}_${goos}_${goarch}${suffix}"
+            goos="$1"; goarch="$2"; label="$3"; suffix="$4"; extra="${5:-}"
+            name="evechat_${V}_${goos}_${label}${suffix}"
             CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" $extra \
               go build -trimpath \
               -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -86,12 +86,12 @@ jobs:
               rm -rf "stage/${name}"
             fi
           }
-          build linux amd64 ""
-          build linux arm64 ""
-          build linux armv7 "" "GOARM=7" || true
-          build darwin amd64 ""
-          build darwin arm64 ""
-          build windows amd64 ".exe"
+          build linux amd64 amd64 ""
+          build linux arm64 arm64 ""
+          build linux arm armv7 "" "GOARM=7"
+          build darwin amd64 amd64 ""
+          build darwin arm64 arm64 ""
+          build windows amd64 amd64 ".exe"
           (cd dist && sha256sum * > checksums.txt)
           cp embed/widget/widget.js dist/widget.js || true
           ls -lh dist
