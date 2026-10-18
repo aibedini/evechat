@@ -38,3 +38,4 @@ seed.log
 *.prev
 .cache/
 *.tsbuildinfo
+.project-key.txt
