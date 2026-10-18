@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- stage 1: front-ends ----
-FROM node:22-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /src
 COPY web/widget/package*.json web/widget/
 RUN cd web/widget && npm ci --no-audit --no-fund
