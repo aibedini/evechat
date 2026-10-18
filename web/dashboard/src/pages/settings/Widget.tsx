@@ -13,6 +13,21 @@ interface SettingsResponse {
 }
 
 export function WidgetSettingsPage() {
+  const [wallboard, setWallboard] = useState<{ token: string; url: string } | null>(null);
+  const [wallboardError, setWallboardError] = useState("");
+  const rotateWallboard = async () => {
+    try {
+      const res = await api<{ token: string; url: string }>("/api/v1/settings/project/wallboard-token", { method: "POST" });
+      setWallboard(res);
+      setWallboardError("");
+    } catch (err: any) {
+      setWallboardError(err?.message || "خطا");
+    }
+  };
+  const revokeWallboard = async () => {
+    await api("/api/v1/settings/project/wallboard-token", { method: "DELETE" });
+    setWallboard(null);
+  };
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["project-settings"],
     queryFn: () => api<SettingsResponse>("/api/v1/settings/project"),
@@ -184,6 +199,31 @@ export function WidgetSettingsPage() {
             >
               {t("copy")}
             </Button>
+          </Card>
+
+          <Card>
+            <CardTitle>صفحه‌ی نمایش (Wallboard)</CardTitle>
+            <p className="mb-3 text-xs text-slate-500">
+              یک صفحه‌ی فقط‌خواندنی برای تلویزیون اتاق پشتیبانی. توکن فقط یک بار نمایش داده می‌شود و
+              هیچ محتوای پیام یا اطلاعات بازدیدکننده‌ای برنمی‌گرداند.
+            </p>
+            {wallboard && (
+              <div className="mb-3 space-y-2 rounded-xl bg-slate-100 p-3 text-[11px]">
+                <div dir="ltr" className="break-all">{wallboard.url}</div>
+                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(wallboard.url)}>
+                  {t("copy")}
+                </Button>
+              </div>
+            )}
+            {wallboardError && <div className="mb-2 text-xs text-red-600">{wallboardError}</div>}
+            <div className="flex gap-2">
+              <Button size="sm" onClick={rotateWallboard}>
+                {wallboard ? "تولید توکن جدید" : "ساخت لینک صفحه‌ی نمایش"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={revokeWallboard}>
+                لغو لینک
+              </Button>
+            </div>
           </Card>
 
           <Card>

@@ -23,6 +23,8 @@ export function TicketsPage() {
   const [form, setForm] = useState({ title: "", description: "", priority: "normal", due_at: "" });
   const [dragging, setDragging] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // Below md the five columns collapse into tabs; only one column is mounted.
+  const [activeColumn, setActiveColumn] = useState(COLUMNS[0].key);
 
   const tickets = useQuery({
     queryKey: ["tickets"],
@@ -98,10 +100,30 @@ export function TicketsPage() {
           <Spinner />
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-3">
+        <>
+        <div className="kanban-tabs">
+          {COLUMNS.map((col) => (
+            <button
+              key={col.key}
+              type="button"
+              onClick={() => setActiveColumn(col.key)}
+              className={cn(
+                "chip whitespace-nowrap border px-3 py-1.5",
+                activeColumn === col.key
+                  ? "border-brand-200 bg-brand-50 text-brand-700"
+                  : "border-slate-200 text-slate-500"
+              )}
+            >
+              {col.label} · {byStatus(col.key).length}
+            </button>
+          ))}
+        </div>
+        <div className="kanban">
           {COLUMNS.map((col) => (
             <div
               key={col.key}
+              data-column={col.key}
+              data-active={activeColumn === col.key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => {
                 if (dragging) move.mutate({ id: dragging, status: col.key });
@@ -145,6 +167,7 @@ export function TicketsPage() {
             </div>
           ))}
         </div>
+        </>
       )}
 
       <Modal

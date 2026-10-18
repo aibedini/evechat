@@ -156,8 +156,8 @@ export function InboxPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
-      <div className="flex flex-col">
+    <div className="inbox flex h-full min-h-0 flex-1" data-active={!!activeId}>
+      <div className="inbox-list flex flex-col">
         <ConversationList
           items={list.data?.data || []}
           total={list.data?.total || 0}
@@ -179,6 +179,7 @@ export function InboxPage() {
         onSend={onSend}
         onAssign={(agentId) => activeId && assign.mutate({ id: activeId, body: { agent_id: agentId } })}
         onClaim={() => activeId && claim.mutate({ id: activeId })}
+        onBack={() => setActiveId(undefined)}
         onResolve={() => activeId && resolve.mutate({ id: activeId })}
         onReopen={() => activeId && reopen.mutate({ id: activeId })}
         onTransfer={(agentId, note) => activeId && transfer.mutate({ id: activeId, body: { agent_id: agentId, note } })}

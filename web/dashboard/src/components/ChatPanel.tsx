@@ -22,6 +22,7 @@ export function ChatPanel({
   onSend,
   onAssign,
   onClaim,
+  onBack,
   onResolve,
   onReopen,
   onTransfer,
@@ -36,6 +37,7 @@ export function ChatPanel({
   onSend: (text: string, internal: boolean) => void;
   onAssign: (agentId: string) => void;
   onClaim: () => void;
+  onBack?: () => void;
   onResolve: () => void;
   onReopen: () => void;
   onTransfer: (agentId: string, note: string) => void;
@@ -74,8 +76,18 @@ export function ChatPanel({
   const isClosed = conversation.status === "resolved" || conversation.status === "closed";
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col bg-slate-50">
+    <div className="inbox-chat flex min-w-0 flex-1 flex-col bg-slate-50">
       <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="بازگشت به فهرست"
+            className="rounded-lg border border-slate-200 px-2 py-1 text-sm md:hidden"
+          >
+            ›
+          </button>
+        )}
         <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
           {initials(visitorName)}
         </span>

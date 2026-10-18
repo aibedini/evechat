@@ -1,0 +1,159 @@
+/*
+ * breakpoints.css — the single source of truth for responsive behaviour.
+ *
+ * Five breakpoints, mobile first. The widget uses the same five values
+ * (web/widget/src/ui/styles.ts); if you change one, change both.
+ *
+ *   xs   360px   small phones
+ *   sm   480px   phones
+ *   md   768px   tablets (table -> cards, kanban -> tabs, sidebar -> drawer)
+ *   lg  1024px   small laptops (visitor panel appears)
+ *   xl  1440px   desktop
+ */
+:root {
+  --bp-xs: 360px;
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1440px;
+}
+
+/* ---------- app shell: off-canvas sidebar under md ---------- */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.sidebar-shell {
+  display: flex;
+  flex-shrink: 0;
+}
+.mobile-bar {
+  display: none;
+}
+.sidebar-backdrop {
+  display: none;
+}
+@media (max-width: 767px) {
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+  }
+  .sidebar-shell {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  [dir="rtl"] .sidebar-shell {
+    transform: translateX(100%);
+  }
+  .sidebar-shell[data-open="true"] {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop[data-open="true"] {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(15 23 42 / 0.45);
+  }
+}
+
+/* ---------- inbox: one column under md ---------- */
+@media (max-width: 767px) {
+  .inbox-list {
+    width: 100% !important;
+    flex: 1 1 auto;
+  }
+  .inbox[data-active="true"] .inbox-list {
+    display: none;
+  }
+  .inbox:not([data-active="true"]) .inbox-chat,
+  .inbox:not([data-active="true"]) .inbox-visitor {
+    display: none;
+  }
+  .inbox-chat {
+    width: 100% !important;
+  }
+}
+@media (max-width: 1023px) {
+  .inbox-visitor {
+    display: none;
+  }
+}
+
+/* ---------- tables become cards under md ---------- */
+@media (max-width: 767px) {
+  table.table-cards,
+  table.table-cards tbody,
+  table.table-cards tr,
+  table.table-cards td {
+    display: block;
+    width: 100%;
+  }
+  table.table-cards thead {
+    display: none;
+  }
+  table.table-cards tr {
+    margin-bottom: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 8px 10px;
+    background: #fff;
+  }
+  table.table-cards td {
+    padding: 4px 2px;
+    border: 0;
+    text-align: start;
+  }
+  table.table-cards td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: #94a3b8;
+    font-size: 10px;
+  }
+}
+
+/* ---------- kanban: tabs under md ---------- */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.kanban-tabs {
+  display: none;
+}
+@media (max-width: 767px) {
+  .kanban {
+    grid-template-columns: 1fr;
+  }
+  .kanban > [data-column] {
+    display: none;
+  }
+  .kanban > [data-column][data-active="true"] {
+    display: block;
+  }
+  .kanban-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+}
+
+/* ---------- touch targets ---------- */
+@media (pointer: coarse) {
+  button,
+  a.nav-link,
+  .chip {
+    min-height: 40px;
+  }
+}

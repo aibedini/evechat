@@ -93,7 +93,7 @@ export function TeamSettingsPage() {
         ) : items.length === 0 ? (
           <Empty>{t("empty")}</Empty>
         ) : (
-          <table className="w-full text-xs">
+          <table className="table-cards w-full text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-start font-medium">نام</th>
@@ -109,7 +109,7 @@ export function TeamSettingsPage() {
               {items.map((a) => (
                 <tr key={a.id} className="border-t border-slate-50">
                   <td className="px-4 py-3 font-medium">{a.name}</td>
-                  <td className="px-4 py-3" dir="ltr">
+                  <td className="px-4 py-3" dir="ltr" data-label="ایمیل">
                     {a.email}
                   </td>
                   <td className="px-4 py-3">

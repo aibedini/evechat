@@ -61,7 +61,7 @@ export function VisitorsPage() {
         ) : items.length === 0 ? (
           <Empty>{t("empty")}</Empty>
         ) : (
-          <table className="w-full text-xs">
+          <table className="table-cards w-full text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-start font-medium">کاربر</th>
@@ -83,10 +83,10 @@ export function VisitorsPage() {
                     <div className="font-medium text-slate-800">{v.name || "ناشناس"}</div>
                     <div className="text-[10px] text-slate-400">{v.email || v.id.slice(-8)}</div>
                   </td>
-                  <td className="px-4 py-3" dir="ltr">{maskPhone(v.phone || v.eve_mobile)}</td>
-                  <td className="px-4 py-3">{v.device_type || "—"} / {v.os || "—"}</td>
-                  <td className="px-4 py-3">{v.eve_reseller_id || "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{timeAgo(v.last_seen_at)}</td>
+                  <td className="px-4 py-3" dir="ltr" data-label="موبایل">{maskPhone(v.phone || v.eve_mobile)}</td>
+                  <td className="px-4 py-3" data-label="دستگاه">{v.device_type || "—"} / {v.os || "—"}</td>
+                  <td className="px-4 py-3" data-label="نمایندگی">{v.eve_reseller_id || "—"}</td>
+                  <td className="px-4 py-3 text-slate-500" data-label="آخرین بازدید">{timeAgo(v.last_seen_at)}</td>
                   <td className="px-4 py-3">
                     {v.is_banned ? (
                       <span className="chip bg-red-100 text-red-700">مسدود</span>

@@ -28,6 +28,9 @@ export class WidgetUI {
   private titleEl: HTMLElement;
   private composer: Composer;
   private unsubscribe: () => void = () => undefined;
+  private viewportCleanup: () => void = () => undefined;
+  private locked = false;
+  private prevOverflow = "";
 
   constructor(private chat: Chat, private opts: UIOptions) {
     this.host = document.createElement("div");
@@ -93,7 +96,56 @@ export class WidgetUI {
     });
 
     this.mount();
+    this.setupViewport();
     this.unsubscribe = this.chat.subscribe((s) => this.update(s));
+  }
+
+  /**
+   * Mobile keyboards do not resize the layout viewport: window.innerHeight
+   * stays put and the composer ends up behind the keyboard. visualViewport
+   * reports the actually visible box, so track it and expose the keyboard
+   * height (and the visible height) to the CSS as --ec-kb / --ec-vv.
+   */
+  private setupViewport(): void {
+    const vv = (window as any).visualViewport as VisualViewport | undefined;
+    const apply = () => {
+      const height = vv ? vv.height : window.innerHeight;
+      const offsetTop = vv ? vv.offsetTop : 0;
+      const kb = Math.max(0, Math.round(window.innerHeight - height - offsetTop));
+      this.host.style.setProperty("--ec-vh", window.innerHeight + "px");
+      this.host.style.setProperty("--ec-vv", Math.round(height) + "px");
+      this.host.style.setProperty("--ec-kb", kb + "px");
+      this.panel.classList.toggle("kb", kb > 80);
+    };
+    apply();
+    if (vv) {
+      vv.addEventListener("resize", apply);
+      vv.addEventListener("scroll", apply);
+    }
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    this.viewportCleanup = () => {
+      if (vv) {
+        vv.removeEventListener("resize", apply);
+        vv.removeEventListener("scroll", apply);
+      }
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }
+
+  /** Full-screen mobile panel locks the page scroll behind it. */
+  private updateScrollLock(open: boolean): void {
+    const mobile =
+      typeof window.matchMedia === "function" && window.matchMedia("(max-width:480px)").matches;
+    if (open && mobile && !this.locked) {
+      this.prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      this.locked = true;
+    } else if ((!open || !mobile) && this.locked) {
+      document.body.style.overflow = this.prevOverflow;
+      this.locked = false;
+    }
   }
 
   private buildHeader(): void {
@@ -145,6 +197,7 @@ export class WidgetUI {
       }
     }
     this.panel.classList.toggle("open", state.open);
+    this.updateScrollLock(state.open);
     this.launcher.el.setAttribute("aria-expanded", state.open ? "true" : "false");
     this.launcher.setUnread(state.unread);
     this.launcher.el.setAttribute(
@@ -197,6 +250,8 @@ export class WidgetUI {
 
   destroy(): void {
     this.unsubscribe();
+    this.viewportCleanup();
+    if (this.locked) document.body.style.overflow = this.prevOverflow;
     this.host.remove();
   }
 }

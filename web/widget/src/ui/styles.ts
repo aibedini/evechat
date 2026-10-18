@@ -14,7 +14,15 @@ const base: Palette = {
 
 /** All widget CSS lives in one string inside the shadow root. */
 export function styles(palette: Partial<Palette> = {}, position = "bottom-left", dark = false): string {
-  const c = { ...base, ...palette };
+  // A palette with explicit undefined values must not wipe the defaults: a
+  // project that only configured "primary" would otherwise render
+  // "background: undefined" and end up with a transparent panel.
+  const c: Palette = {
+    primary: palette.primary || base.primary,
+    text: palette.text || base.text,
+    background: palette.background || base.background,
+    launcher: palette.launcher || base.launcher,
+  };
   const side = position === "bottom-right" ? "right" : "left";
   const opposite = position === "bottom-right" ? "left" : "right";
   const bg = dark ? "#0f172a" : c.background;
@@ -26,7 +34,9 @@ export function styles(palette: Partial<Palette> = {}, position = "bottom-left",
   return `
 :host{all:initial}
 *{box-sizing:border-box;font-family:${font}}
-.ec-root{position:fixed;z-index:2147483000;bottom:20px;${side}:20px;direction:rtl}
+.ec-root{position:fixed;z-index:2147483000;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  ${side}:calc(20px + env(safe-area-inset-${side},0px));direction:rtl;
+  --ec-vh:100vh;--ec-vv:100vh;--ec-kb:0px}
 .ec-launcher{width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;background:${c.launcher};
   color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.25);display:flex;align-items:center;justify-content:center;
   position:relative}
@@ -35,7 +45,8 @@ export function styles(palette: Partial<Palette> = {}, position = "bottom-left",
 .ec-badge{position:absolute;top:-4px;${opposite}:-4px;min-width:20px;height:20px;border-radius:10px;
   background:#dc2626;color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 5px}
 .ec-badge.on{display:flex}
-.ec-panel{position:absolute;bottom:72px;${side}:0;width:380px;height:560px;max-height:calc(100vh - 110px);
+.ec-panel{position:absolute;bottom:72px;${side}:0;width:380px;height:560px;
+  max-height:calc(100vh - 110px);max-height:calc(100dvh - 110px);
   background:${bg};border-radius:18px;box-shadow:0 24px 60px rgba(15,23,42,.28);
   display:none;flex-direction:column;overflow:hidden;border:1px solid ${border};color:${fg}}
 .ec-panel.open{display:flex;animation:ec-in .2s ease}
@@ -75,9 +86,31 @@ export function styles(palette: Partial<Palette> = {}, position = "bottom-left",
 .ec-stars{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
 .ec-star{background:transparent;border:0;font-size:22px;cursor:pointer;color:#cbd5e1}
 .ec-star.on{color:#f59e0b}
+/* Five breakpoints, mobile first: 360 / 480 / 768 / 1024 / 1440. */
+@media (max-width:360px){
+  .ec-panel{width:100vw}
+  .ec-msg{max-width:92%}
+  .ec-head{padding:10px 12px}
+}
 @media (max-width:480px){
-  .ec-root{bottom:12px;${side}:12px}
-  .ec-panel{position:fixed;inset:0;width:100%;height:100%;max-height:none;border-radius:0}
+  .ec-root{bottom:calc(12px + env(safe-area-inset-bottom,0px));
+    ${side}:calc(12px + env(safe-area-inset-${side},0px))}
+  .ec-panel{position:fixed;inset:0;width:100%;height:100%;max-height:none;border-radius:0;
+    height:var(--ec-vh);height:100dvh}
+  /* The keyboard shrinks the visual viewport: pin the panel to it so the
+     composer stays above the keyboard instead of hiding behind it. */
+  .ec-panel.kb{height:var(--ec-vv);top:0;bottom:auto}
+  .ec-msgs{padding-bottom:calc(14px + var(--ec-kb))}
+  .ec-composer{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+}
+@media (min-width:481px) and (max-width:768px){
+  .ec-panel{width:min(420px,calc(100vw - 32px));height:min(620px,calc(100dvh - 110px))}
+}
+@media (min-width:769px) and (max-width:1024px){
+  .ec-panel{width:360px}
+}
+@media (min-width:1441px){
+  .ec-panel{width:400px;height:600px}
 }
 @media (prefers-reduced-motion:reduce){
   .ec-panel.open{animation:none}

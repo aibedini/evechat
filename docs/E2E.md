@@ -16,6 +16,11 @@ mocked.
 | 6 | Claiming activates and owns the conversation | BUG-2 |
 | 7 | The widget works with localStorage/IndexedDB blocked | BUG-0 |
 
+`responsive.spec.ts` runs 8 devices x 2 orientations x 2 themes = 32
+combinations with 8 assertions each (panel fits the viewport, composer above the
+fold, no horizontal scroll, sent message renders, theme reaches the panel, ...)
+plus a dashboard drawer test. See `docs/RESPONSIVE.md`.
+
 ## Running locally
 
 ```bash
@@ -35,5 +40,6 @@ The widget test page the suite drives is `GET /demo/test` (loopback only).
 ## CI
 
 `.github/workflows/e2e.yml` job `behavior` builds the binary, starts an
-instance on port 3212, and runs the suite. A red run fails the workflow, so the
+instance on port 3212, and runs **all** specs (`behavior.spec.ts` and
+`responsive.spec.ts`). A red run fails the workflow, so the
 pull request cannot merge with a broken behaviour.

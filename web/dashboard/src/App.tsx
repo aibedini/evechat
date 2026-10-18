@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { t } from "@/lib/i18n";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "@/hooks/useAuth";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -17,6 +19,7 @@ import { TeamSettingsPage } from "@/pages/settings/Team";
 import { IntegrationsSettingsPage } from "@/pages/settings/Integrations";
 import { WebhooksSettingsPage } from "@/pages/settings/Webhooks";
 import { ChannelsSettingsPage } from "@/pages/settings/Channels";
+import { WallboardPage } from "@/pages/Wallboard";
 import { DiagnosticsPage } from "@/pages/settings/Diagnostics";
 import { ActivityPage } from "@/pages/settings/Activity";
 import { SecurityPage } from "@/pages/settings/Security";
@@ -35,10 +38,26 @@ const queryClient = new QueryClient({
 
 function AppLayout() {
   const { state } = useWebSocket({});
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar online={state === "open"} />
+    <div className="app-shell bg-slate-50">
+      <div className="sidebar-backdrop" data-open={menuOpen} onClick={() => setMenuOpen(false)} />
+      <div className="sidebar-shell" data-open={menuOpen}>
+        <Sidebar online={state === "open"} onNavigate={() => setMenuOpen(false)} />
+      </div>
       <main className="flex min-w-0 flex-1 flex-col">
+        <div className="mobile-bar">
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            aria-label="منو"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            ☰
+          </button>
+          <span className="text-sm font-semibold">{t("appName")}</span>
+        </div>
         <Outlet />
       </main>
     </div>
@@ -51,6 +70,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/wallboard" element={<WallboardPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot" element={<ForgotPage />} />
             <Route path="/reset" element={<ResetPage />} />

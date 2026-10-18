@@ -7,6 +7,19 @@ Versioning: [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Responsive pass (TASK 37/38)**: `breakpoints.css` is the single source of
+  truth (360/480/768/1024/1440, mirrored in the widget and the setup wizard);
+  the widget handles the mobile keyboard with `visualViewport`
+  (`--ec-vh`/`--ec-vv`/`--ec-kb`), `dvh` with a `vh` fallback, safe-area insets
+  and body scroll lock; the dashboard sidebar becomes an off-canvas drawer, the
+  inbox collapses to one column with a back button, tables become cards and the
+  ticket kanban becomes tabs under `md`; the setup wizard gets a mobile pass.
+- **`/wallboard`**: read-only big screen behind a rotating project token. The
+  payload is aggregates only — no message content, no visitor identity.
+- **`responsive.spec.ts`**: 8 devices x 2 orientations x 2 themes = 32
+  combinations with 8 assertions each, plus a dashboard drawer test, in CI.
+
+### Added
 - **Channels (two-way webhooks)**: `channels`, `channel_identities` and
   `webhook_inbox` tables; ten REST routes plus the public
   `POST /api/channels/{id}/inbound`; JSONPath input mapping with a live
@@ -17,6 +30,11 @@ Versioning: [SemVer](https://semver.org/).
   inspector. Bodies are scrubbed and kept 48 hours. See `docs/CHANNELS.fa.md`.
 - **Behaviour suite**: `web/e2e` with seven Playwright scenarios covering
   BUG-0…BUG-4, run by the `behavior` job in `.github/workflows/e2e.yml`.
+
+### Fixed
+- The widget panel rendered **transparent** when a project palette omitted a
+  colour: the palette spread carried explicit `undefined` values that overrode
+  the defaults, producing `background: undefined`.
 
 ### Changed
 - Widget gzip budget raised from 12 KB to 16 KB. The 12 KB figure came from the

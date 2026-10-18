@@ -1,3 +1,6 @@
+/* Responsive source of truth (must precede the Tailwind directives). */
+@import "./styles/breakpoints.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

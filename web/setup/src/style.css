@@ -311,11 +311,56 @@ pre {
   font-size: 12px;
   color: var(--muted);
 }
+/* Mobile first: 360 / 480 / 768 (same scale as the widget and the dashboard). */
+.shell {
+  padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-inline: calc(20px + env(safe-area-inset-left, 0px))
+    calc(20px + env(safe-area-inset-right, 0px));
+}
+@media (max-width: 768px) {
+  .shell {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    max-width: 100%;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+  .actions .btn,
+  .actions .btn-primary {
+    flex: 1 1 100%;
+  }
+  .actions .spacer {
+    display: none;
+  }
+}
 @media (max-width: 520px) {
   .row {
     flex-direction: column;
   }
   .card {
     padding: 18px;
+  }
+  /* 16px keeps iOS Safari from zooming into a focused field. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  .cred {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+@media (max-width: 360px) {
+  .card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .brand h1 {
+    font-size: 16px;
   }
 }

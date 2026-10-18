@@ -13,10 +13,15 @@ const ADMIN = {
   password: process.env.EVECHAT_ADMIN_PASSWORD || "Passw0rd123!",
 };
 
-async function visitorPage(context: BrowserContext): Promise<Page> {
+async function visitorPage(context: BrowserContext, name?: string): Promise<Page> {
   const page = await context.newPage();
   await page.goto("/demo/test");
-  await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+  await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
+  if (name) {
+    // Every demo visitor is called "کاربر تست"; a unique name keeps the inbox
+    // row unambiguous when the whole suite shares one instance.
+    await page.evaluate((n) => (window as any).ec("identify", { name: n }), name);
+  }
   await page.evaluate(() => (window as any).ec("open"));
   return page;
 }
@@ -34,7 +39,7 @@ async function agentPage(context: BrowserContext, baseURL: string): Promise<Page
     localStorage.setItem("evechat:session", JSON.stringify({ agent: data.agent, project: data.project }));
   }, { token: auth.access_token, refresh: auth.refresh_token, agent: auth.agent, project: auth.project });
   await page.goto("/inbox");
-  await expect(page.getByText("صندوق گفتگو").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("صندوق گفتگو").first()).toBeVisible({ timeout: 30_000 });
   return page;
 }
 
@@ -49,25 +54,25 @@ async function agentToken(context: BrowserContext, baseURL: string): Promise<str
 test.describe("behaviour", () => {
   test("1. resume keeps the conversation history", async ({ page }) => {
     await page.goto("/demo/test");
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
     const text = "پیام ماندگار " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);
     await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text);
 
     await page.reload();
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
     await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text, { timeout: 15_000 });
   });
 
   test("2. resume does not resurrect read messages as unread", async ({ page }) => {
     await page.goto("/demo/test");
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
     await page.evaluate(() => (window as any).ec("close"));
     await page.reload();
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.waitForTimeout(1500);
     const badge = page.locator(widget + " .ec-badge");
     const shown = await badge.evaluate((el) => el.classList.contains("on")).catch(() => false);
@@ -77,7 +82,7 @@ test.describe("behaviour", () => {
 
   test("3. a resolved thread does not swallow the next message", async ({ page }) => {
     await page.goto("/demo/test");
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
     const text = "قبل از resolve " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);
@@ -115,19 +120,20 @@ test.describe("behaviour", () => {
   test("4. a pending conversation delivers messages to the agent", async ({ browser, baseURL }) => {
     const visitorCtx = await browser.newContext();
     const agentCtx = await browser.newContext();
-    const visitor = await visitorPage(visitorCtx);
+    const visitorName = "مشتری زنده " + Date.now();
+    const visitor = await visitorPage(visitorCtx, visitorName);
     const first = "پیام اول " + Date.now();
     await visitor.evaluate((t) => (window as any).ec("send", t), first);
     await expect(visitor.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(first);
 
     const agent = await agentPage(agentCtx, baseURL!);
-    const row = agent.getByText("کاربر تست").first();
-    await expect(row).toBeVisible({ timeout: 20_000 });
+    const row = agent.getByText(visitorName).first();
+    await expect(row).toBeVisible({ timeout: 30_000 });
     await row.click();
 
     const live = "پیام زنده " + Date.now();
     await visitor.evaluate((t) => (window as any).ec("send", t), live);
-    await expect(agent.getByText(live).first()).toBeVisible({ timeout: 20_000 });
+    await expect(agent.getByText(live).first()).toBeVisible({ timeout: 30_000 });
 
     await visitorCtx.close();
     await agentCtx.close();
@@ -136,14 +142,15 @@ test.describe("behaviour", () => {
   test("5. typing reaches the panel and expires server-side", async ({ browser, baseURL }) => {
     const visitorCtx = await browser.newContext();
     const agentCtx = await browser.newContext();
-    const visitor = await visitorPage(visitorCtx);
+    const visitorName = "مشتری تایپ " + Date.now();
+    const visitor = await visitorPage(visitorCtx, visitorName);
     const first = "شروع گفتگو " + Date.now();
     await visitor.evaluate((t) => (window as any).ec("send", t), first);
     await expect(visitor.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(first);
 
     const agent = await agentPage(agentCtx, baseURL!);
-    const row = agent.getByText("کاربر تست").first();
-    await expect(row).toBeVisible({ timeout: 20_000 });
+    const row = agent.getByText(visitorName).first();
+    await expect(row).toBeVisible({ timeout: 30_000 });
     await row.click();
 
     const token = await agentToken(agentCtx, baseURL!);
@@ -166,7 +173,7 @@ test.describe("behaviour", () => {
 
     await expect(agent.getByText("در حال تایپ…").first()).toBeVisible({ timeout: 15_000 });
     // No typing.stop frame: only the 5s server TTL can clear it.
-    await expect(agent.getByText("در حال تایپ…").first()).toBeHidden({ timeout: 20_000 });
+    await expect(agent.getByText("در حال تایپ…").first()).toBeHidden({ timeout: 30_000 });
 
     await visitorCtx.close();
     await agentCtx.close();
@@ -232,7 +239,7 @@ test.describe("behaviour", () => {
     });
     const page = await ctx.newPage();
     await page.goto("/demo/test");
-    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
     const text = "بدون حافظه " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);

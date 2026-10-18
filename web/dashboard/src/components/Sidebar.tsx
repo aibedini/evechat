@@ -25,7 +25,7 @@ const settings = [
   { to: "/settings/diagnostics", label: "سلامت سیستم", icon: "🩺" },
 ];
 
-export function Sidebar({ online }: { online: boolean }) {
+export function Sidebar({ online, onNavigate }: { online: boolean; onNavigate?: () => void }) {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const [dark, setDark] = useState(resolvedTheme() === "dark");
@@ -42,7 +42,7 @@ export function Sidebar({ online }: { online: boolean }) {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
         {links.map((l) => (
-          <NavLink key={l.to} to={l.to} end={l.to === "/"} className={({ isActive }) => cn("nav-link", isActive && "active")}>
+          <NavLink key={l.to} to={l.to} end={l.to === "/"} onClick={onNavigate} className={({ isActive }) => cn("nav-link", isActive && "active")}>
             <span>{l.icon}</span>
             <span>{l.label}</span>
           </NavLink>
@@ -51,7 +51,7 @@ export function Sidebar({ online }: { online: boolean }) {
           {t("settings")}
         </div>
         {settings.map((l) => (
-          <NavLink key={l.to} to={l.to} className={({ isActive }) => cn("nav-link", isActive && "active")}>
+          <NavLink key={l.to} to={l.to} onClick={onNavigate} className={({ isActive }) => cn("nav-link", isActive && "active")}>
             <span>{l.icon}</span>
             <span>{l.label}</span>
           </NavLink>

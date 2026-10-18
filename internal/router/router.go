@@ -145,6 +145,7 @@ func New(d Deps) http.Handler {
 	publicIntegrationPaths := map[string]bool{
 		"/api/v1/integrations/telegram/webhook": true,
 		"/api/v1/integrations/gmweb/inbound":    true,
+		"/api/v1/wallboard":                     true,
 	}
 	authMiddleware := middleware.Auth(d.Tokens)
 
@@ -169,10 +170,14 @@ func New(d Deps) http.Handler {
 		}))
 
 		r.Get("/config", wrap(d.H.PublicConfig))
+		// Read-only wallboard feed; the token in the query is the credential.
+		r.Get("/wallboard", wrap(d.H.Wallboard))
 
 		r.Get("/settings/project", wrap(d.H.GetProjectSettings))
 		r.Put("/settings/project", wrap(d.H.UpdateProjectSettings))
 		r.Post("/settings/project/rotate-key", wrap(d.H.RotateAPIKey))
+		r.Post("/settings/project/wallboard-token", wrap(d.H.WallboardToken))
+		r.Delete("/settings/project/wallboard-token", wrap(d.H.RevokeWallboardToken))
 
 		r.Get("/conversations", wrap(d.H.ListConversations))
 		r.Get("/conversations/export", wrap(d.H.ExportConversations))

@@ -38,7 +38,7 @@ export function VisitorPanel({
   const [tab, setTab] = useState<"info" | "history">("info");
   if (!visitor) {
     return (
-      <div className="w-[300px] shrink-0 border-s border-slate-200 bg-white p-4 text-center text-xs text-slate-400">
+      <div className="inbox-visitor w-[300px] shrink-0 border-s border-slate-200 bg-white p-4 text-center text-xs text-slate-400">
         —
       </div>
     );
@@ -49,7 +49,7 @@ export function VisitorPanel({
   const left = daysLeft(expiry);
 
   return (
-    <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-s border-slate-200 bg-white xl:flex">
+    <aside className="inbox-visitor hidden w-[300px] shrink-0 flex-col overflow-y-auto border-s border-slate-200 bg-white lg:flex">
       <div className="border-b border-slate-100 p-4">
         <div className="flex items-center gap-2">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
