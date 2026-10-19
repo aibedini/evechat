@@ -41,6 +41,9 @@ Versioning: [SemVer](https://semver.org/).
 - `server.trusted_proxies` replaces the 1.2.3 loopback/private heuristic. The
   nginx, Caddy and Traefik examples overwrite `X-Forwarded-For`; setting
   `trust_proxy: true` on a public interface now warns in `doctor`.
+- Go 1.26 is the toolchain in `go.mod`, the Dockerfile, CI and the release
+  matrix. `golang.org/x/image`, `go-viper/mapstructure` and `golang-jwt/jwt`
+  were updated; `govulncheck` now reports zero called vulnerabilities.
 
 ### Fixed
 - A client could spoof its own IP (and bypass rate limits, the IP blocklist and

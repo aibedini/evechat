@@ -18,7 +18,7 @@ make test         # Go tests
 make test-widget  # vitest
 ```
 
-Go 1.23+, Node 22+ and npm are required. Docker is optional.
+Go 1.26+, Node 22+ and npm are required. Docker is optional.
 
 ## Non-negotiables
 

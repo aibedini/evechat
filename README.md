@@ -12,7 +12,7 @@ The installer verifies checksums, creates a system user, generates secrets, inst
 
 ## What it is
 
-- **Backend:** Go 1.23, chi, coder/websocket, SQLite WAL (CGO-free), AES-256-GCM message encryption, ULIDs, FTS5 knowledge base.
+- **Backend:** Go 1.26, chi, coder/websocket, SQLite WAL (CGO-free), AES-256-GCM message encryption, ULIDs, FTS5 knowledge base.
 - **Widget:** vanilla TypeScript, Shadow DOM, WebSocket → SSE → long-poll fallback, IndexedDB outbox, 12.2 KB gzip (budget 16 KB), self-hosted Vazirmatn injected on first open.
 - **Dashboard:** React 18 + Vite + Tailwind, Persian RTL, Jalali dates, realtime inbox, visitors, tickets Kanban, knowledge base, audit/health/security settings, dark mode.
 - **Channels:** two-way webhooks with JSONPath input mapping, a retry ladder for outbound acks, a 48-hour scrubbed inspector and a curl generator (`docs/CHANNELS.fa.md`).

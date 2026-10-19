@@ -19,7 +19,7 @@ COPY web/setup web/setup
 RUN cd web/setup && npm run build
 
 # ---- stage 2: static Go binary (cross-compiles via TARGETOS/TARGETARCH) ----
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 ARG VERSION=dev
