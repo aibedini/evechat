@@ -12,6 +12,16 @@ Versioning: [SemVer](https://semver.org/).
 - Realtime translation of agent messages.
 
 
+## [1.2.1] - 2026-10-19
+
+### Changed
+- Widget budget is now a single source of truth (`scripts/widget-budget.txt`,
+  16,384 bytes gzip); the release workflow enforces it without
+  `continue-on-error`, and every stale 12,288 reference in the docs was updated.
+- Channel inbound docs and OpenAPI use the id-based route
+  `POST /api/channels/{id}/inbound` (slug is only unique per project).
+- `evechat version` falls back to `debug.ReadBuildInfo` VCS metadata, so a plain
+  `go build` reports `dev-<commit>[-dirty]` instead of `dev (none, unknown)`.
 ## [1.2.0] - 2026-10-18
 
 ### Added

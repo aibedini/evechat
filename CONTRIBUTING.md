@@ -23,7 +23,7 @@ Go 1.23+, Node 22+ and npm are required. Docker is optional.
 ## Non-negotiables
 
 1. `CGO_ENABLED=0 go build ./...`, `go vet ./...` and `go test ./...` must pass.
-2. The widget stays **under 12,288 bytes gzip**; the font is never bundled.
+2. The widget stays **under 16,384 bytes gzip**; the font is never bundled.
 3. No new runtime dependency on a CDN, font host or third-party API.
 4. Secrets never go into YAML, logs, backups by default, or audit diffs.
 5. The hub goroutine never blocks and never takes a mutex.

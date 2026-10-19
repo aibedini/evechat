@@ -53,8 +53,15 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      - name: resolve version
-        id: v
+      - name: enforce widget budget
+        run: |
+          set -euo pipefail
+          size=$(gzip -c embed/widget/widget.js | wc -c)
+          budget=$(cat scripts/widget-budget.txt)
+          echo "widget gzip: ${size} bytes (budget ${budget})"
+          test "$size" -le "$budget"
+
+      - name: resolve version        id: v
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
