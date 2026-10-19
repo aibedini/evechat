@@ -65,6 +65,71 @@
   .nav-link.active {
     @apply bg-slate-800 text-white;
   }
+  .page-header {
+    @apply mb-5 flex flex-col gap-2;
+  }
+  .page-title {
+    @apply text-xl font-bold text-slate-900;
+  }
+  .page-intro {
+    @apply max-w-3xl text-sm leading-6 text-slate-600;
+  }
+  .intro-toggle {
+    @apply mt-1 self-start text-xs font-medium text-brand-600;
+    display: none;
+  }
+  .empty-state {
+    @apply flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center;
+  }
+  .empty-title {
+    @apply text-base font-semibold text-slate-800;
+  }
+  .empty-body {
+    @apply max-w-md text-sm text-slate-500;
+  }
+  .field-help {
+    @apply mt-1 text-xs leading-5 text-slate-500;
+  }
+  .help-tip {
+    @apply relative inline-flex align-middle;
+  }
+  .help-tip-button {
+    @apply grid h-5 w-5 place-items-center rounded-full border border-slate-300 text-[11px] text-slate-500;
+  }
+  .help-tip-bubble {
+    @apply absolute z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-2 text-xs leading-5 text-slate-600 shadow-lg;
+    inset-inline-start: 0;
+    top: 100%;
+  }
+  .callout {
+    @apply rounded-xl border p-3 text-sm leading-6;
+  }
+  .callout-info {
+    @apply border-blue-200 bg-blue-50 text-blue-800;
+  }
+  .callout-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+  .callout-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-800;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-intro {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .page-intro.is-open {
+    display: block;
+  }
+  .intro-toggle {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
 }
 
 /* ---- dark theme (data-theme is set before first paint by index.html) ---- */

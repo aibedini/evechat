@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { formatJalali, formatJalaliTime, formatJalaliLong, JALALI_MONTHS } from "./jalali";
+import { copy } from "./copy.fa";
 
 export { formatJalali, formatJalaliTime, formatJalaliLong, JALALI_MONTHS };
 
@@ -9,24 +10,28 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export function formatNumber(n: number | undefined | null): string {
-  if (n === undefined || n === null || isNaN(n)) return "۰";
+  if (n === undefined || n === null || isNaN(n)) return new Intl.NumberFormat("fa-IR").format(0);
   return new Intl.NumberFormat("fa-IR").format(n);
 }
 
+function withCount(template: string, n: number): string {
+  return template.replace("{n}", String(n));
+}
+
 export function formatDuration(seconds: number | undefined | null): string {
-  if (!seconds || seconds <= 0) return "—";
-  if (seconds < 60) return `${Math.round(seconds)} ثانیه`;
+  if (!seconds || seconds <= 0) return copy.misc.dash;
+  if (seconds < 60) return `${Math.round(seconds)} ${copy.time.seconds}`;
   const minutes = seconds / 60;
-  if (minutes < 60) return `${Math.round(minutes)} دقیقه`;
+  if (minutes < 60) return `${Math.round(minutes)} ${copy.time.minutes}`;
   const hours = minutes / 60;
-  if (hours < 24) return `${hours.toFixed(1)} ساعت`;
-  return `${(hours / 24).toFixed(1)} روز`;
+  if (hours < 24) return `${hours.toFixed(1)} ${copy.time.hours}`;
+  return `${(hours / 24).toFixed(1)} ${copy.time.days}`;
 }
 
 export function formatDateTime(raw?: string | null): string {
-  if (!raw) return "—";
+  if (!raw) return copy.misc.dash;
   const d = new Date(raw);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return copy.misc.dash;
   return `${formatJalali(d)} ${formatJalaliTime(d)}`;
 }
 
@@ -36,37 +41,27 @@ export function timeAgo(raw?: string | null): string {
   if (isNaN(then)) return "";
   const diff = Math.max(0, Date.now() - then);
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return "همین حالا";
+  if (sec < 60) return copy.time.justNow;
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} دقیقه پیش`;
+  if (min < 60) return withCount(copy.time.minutesAgo, min);
   const hour = Math.floor(min / 60);
-  if (hour < 24) return `${hour} ساعت پیش`;
+  if (hour < 24) return withCount(copy.time.hoursAgo, hour);
   const day = Math.floor(hour / 24);
-  if (day < 30) return `${day} روز پیش`;
+  if (day < 30) return withCount(copy.time.daysAgo, day);
   return formatJalali(new Date(then));
 }
 
 export function initials(name?: string | null): string {
   const n = (name || "").trim();
-  if (!n) return "؟";
+  if (!n) return copy.misc.unknownInitial;
   const parts = n.split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2);
   return (parts[0][0] || "") + (parts[1][0] || "");
 }
 
 export function statusLabel(status: string): string {
-  switch (status) {
-    case "pending":
-      return "در انتظار";
-    case "active":
-      return "فعال";
-    case "resolved":
-      return "حل‌شده";
-    case "closed":
-      return "بسته";
-    default:
-      return status;
-  }
+  const labels: Record<string, string> = { ...copy.status };
+  return labels[status] || status;
 }
 
 export function statusColor(status: string): string {

@@ -50,7 +50,7 @@ function AppLayout() {
           <button
             type="button"
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            aria-label="منو"
+            aria-label={t("menu")}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >

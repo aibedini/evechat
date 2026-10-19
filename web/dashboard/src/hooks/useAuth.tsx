@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { cachedSession, login as doLogin, logout as doLogout, me, type Session } from "@/lib/auth";
 import { isAuthenticated } from "@/lib/auth";
+import { t } from "@/lib/i18n";
 
 interface AuthContextValue {
   session: Session | null;
@@ -63,7 +64,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">در حال بارگذاری…</div>
+      <div className="flex h-screen items-center justify-center text-sm text-slate-500">{t("loading")}</div>
     );
   }
   if (!session) return <Navigate to="/login" state={{ from: location }} replace />;

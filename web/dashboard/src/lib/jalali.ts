@@ -1,21 +1,9 @@
 // Gregorian <-> Jalali conversion with no external dependency.
 // The authoritative path uses the browser's ICU Persian calendar; a small
 // arithmetic fallback covers environments where Intl lacks that calendar.
+import { copy } from "./copy.fa";
 
-const JALALI_MONTHS = [
-  "فروردین",
-  "اردیبهشت",
-  "خرداد",
-  "تیر",
-  "مرداد",
-  "شهریور",
-  "مهر",
-  "آبان",
-  "آذر",
-  "دی",
-  "بهمن",
-  "اسفند",
-];
+const JALALI_MONTHS = copy.dates.months;
 
 interface JalaliDate {
   jy: number;
@@ -129,8 +117,10 @@ function pad(n: number): string {
   return n < 10 ? "0" + n : String(n);
 }
 
+const FA_DIGITS = Array.from({ length: 10 }, (_, i) => String.fromCharCode(0x06f0 + i));
+
 function faDigits(s: string): string {
-  return s.replace(/\d/g, (x) => "۰۱۲۳۴۵۶۷۸۹"[parseInt(x, 10)]);
+  return s.replace(/\d/g, (x) => FA_DIGITS[parseInt(x, 10)]);
 }
 
 /** 1405/07/26 with Persian digits. */
@@ -148,7 +138,7 @@ export function formatJalaliTime(date: Date | number): string {
   return faDigits(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
 }
 
-/** 26 مهر 1405 */
+/** Long Jalali date, e.g. 26 Mehr 1405. */
 export function formatJalaliLong(date: Date | number): string {
   const d = typeof date === "number" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "—";

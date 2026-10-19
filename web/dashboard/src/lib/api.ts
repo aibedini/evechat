@@ -1,3 +1,5 @@
+import { copy } from "./copy.fa";
+
 const ACCESS_KEY = "evechat:access";
 const REFRESH_KEY = "evechat:refresh";
 
@@ -96,13 +98,13 @@ export async function api<T = any>(path: string, opts: Options = {}): Promise<T>
     }
     clearTokens();
     if (location.pathname !== "/login") location.assign("/login");
-    throw new ApiError(401, "unauthorized", "نشست شما منقضی شده است");
+    throw new ApiError(401, "unauthorized", copy.errors.sessionExpired);
   }
 
   const text = await res.text();
   const data = text ? safeJSON(text) : null;
   if (!res.ok) {
-    throw new ApiError(res.status, data?.code || "error", data?.message || "خطای نامشخص", data?.details);
+    throw new ApiError(res.status, data?.code || "error", data?.message || copy.errors.unknownError, data?.details);
   }
   return data as T;
 }
