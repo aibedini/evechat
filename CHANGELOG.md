@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) ·
 Versioning: [SemVer](https://semver.org/).
 
+## [1.2.6] - 2026-10-19
+
+### Added
+- **In-panel page guides.** Every sidebar page now has a short «از کجا شروع
+  کنم؟» card with three concrete steps, a common-mistake note, and the page's
+  full intro; desktop shows it open, mobile expands it with one tap.
+- **Clearer technical language.** English terms stay English (`webhook`,
+  `curl`, `JSONPath`, `PoW`, `IP`/`CIDR`, `User-Agent`, `GDPR`, `HTTPS`,
+  `API`); the menu is now «Webhookها».
+- **Field help** for the new-ticket form, the optional login project key, and
+  the password-recovery pages.
+
+### Fixed
+- The mobile inbox no longer shows an empty chat pane next to the list; the
+  list uses the full width until a conversation is selected.
+- The page intro is no longer clamped to two lines on desktop.
+
 ## [Unreleased]
 
 ### Planned
