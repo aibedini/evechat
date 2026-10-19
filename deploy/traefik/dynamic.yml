@@ -1,5 +1,10 @@
 # EveChat on Traefik v3 (file provider example).
 # Put this next to your static configuration and adjust the rule/host.
+# In Traefik v3 the entrypoint overwrites X-Forwarded-For with the address it
+# saw (forwardedHeaders.insecure is false by default), which is what EveChat
+# needs. Do not enable insecure: it would keep a client-supplied header.
+# When another proxy is in front of Traefik, list it under the entrypoint's
+# forwardedHeaders.trustedIPs and add the same range to server.trusted_proxies.
 http:
   routers:
     evechat:

@@ -89,7 +89,7 @@ func (h *Handlers) AuditMutation(r *http.Request, c *middleware.Claims, status i
 		Action:     action,
 		TargetType: "request",
 		TargetID:   r.URL.Path,
-		IP:         middleware.ClientIP(r, h.Cfg.Server.TrustProxy),
+		IP:         middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies),
 		UserAgent:  r.UserAgent(),
 		Detail:     map[string]any{"method": r.Method, "status": status},
 	}

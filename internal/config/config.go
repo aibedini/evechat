@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,13 +21,14 @@ import (
 // defaults -> yaml file -> environment (EVECHAT_ prefix, "__" = nesting).
 type Config struct {
 	Server struct {
-		Host            string `koanf:"host"`
-		Port            int    `koanf:"port"`
-		PublicURL       string `koanf:"public_url"`
-		TrustProxy      bool   `koanf:"trust_proxy"`
-		ReadTimeout     string `koanf:"read_timeout"`
-		WriteTimeout    string `koanf:"write_timeout"`
-		ShutdownTimeout string `koanf:"shutdown_timeout"`
+		Host            string   `koanf:"host"`
+		Port            int      `koanf:"port"`
+		PublicURL       string   `koanf:"public_url"`
+		TrustProxy      bool     `koanf:"trust_proxy"`
+		TrustedProxies  []string `koanf:"trusted_proxies"`
+		ReadTimeout     string   `koanf:"read_timeout"`
+		WriteTimeout    string   `koanf:"write_timeout"`
+		ShutdownTimeout string   `koanf:"shutdown_timeout"`
 		TLS             struct {
 			Enabled    bool   `koanf:"enabled"`
 			CertFile   string `koanf:"cert_file"`
@@ -165,6 +167,7 @@ func defaults() *Config {
 	c.Server.Port = 3000
 	c.Server.PublicURL = "http://localhost:3000"
 	c.Server.TrustProxy = false
+	c.Server.TrustedProxies = []string{"127.0.0.1/32", "::1/128"}
 	c.Server.ReadTimeout = "15s"
 	c.Server.WriteTimeout = "15s"
 	c.Server.ShutdownTimeout = "20s"
@@ -249,6 +252,12 @@ func Load(path string) (*Config, error) {
 	cfg.Security.BlockedCIDRs = splitCSV(cfg.Security.BlockedCIDRs)
 	cfg.Security.BlockedUserAgents = splitCSV(cfg.Security.BlockedUserAgents)
 	cfg.Security.OutboundAllowHosts = splitCSV(cfg.Security.OutboundAllowHosts)
+	cfg.Server.TrustedProxies = splitCSV(cfg.Server.TrustedProxies)
+	if len(cfg.Server.TrustedProxies) == 0 {
+		// An explicitly emptied list must not silently trust every private or
+		// loopback peer; keep the loopback-only default instead.
+		cfg.Server.TrustedProxies = []string{"127.0.0.1/32", "::1/128"}
+	}
 	return cfg, nil
 }
 
@@ -294,7 +303,25 @@ func (c *Config) Validate() error {
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("server.port %d is invalid", c.Server.Port)
 	}
+	for _, raw := range c.Server.TrustedProxies {
+		if !validProxyAddress(raw) {
+			return fmt.Errorf("server.trusted_proxies: %q is not a valid IP or CIDR", raw)
+		}
+	}
 	return nil
+}
+
+// validProxyAddress accepts a CIDR block or a bare IPv4/IPv6 address. A bare
+// address is treated as a single-host block by the middleware.
+func validProxyAddress(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	if _, _, err := net.ParseCIDR(raw); err == nil {
+		return true
+	}
+	return net.ParseIP(strings.Trim(raw, "[]")) != nil
 }
 
 // EncryptionKeys reads EVECHAT_ENCRYPTION_KEY_V1..V9 (base64, 32 bytes each).

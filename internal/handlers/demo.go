@@ -82,7 +82,7 @@ func (h *Handlers) demoProjectKey(r *http.Request) string {
 
 // demoAllowed reports whether the request comes from the machine itself.
 func (h *Handlers) demoAllowed(r *http.Request) bool {
-	return isLoopbackIP(middleware.ClientIP(r, h.Cfg.Server.TrustProxy))
+	return isLoopbackIP(middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies))
 }
 
 // isLoopbackIP reports whether raw is a loopback address (or the localhost name

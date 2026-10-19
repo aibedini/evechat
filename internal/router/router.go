@@ -47,7 +47,7 @@ func New(d Deps) http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(requestLogger(d.Log))
 	r.Use(middleware.SecurityHeaders)
-	r.Use(middleware.Blocklist(d.H.State.Blocklist(), d.Cfg.Server.TrustProxy))
+	r.Use(middleware.Blocklist(d.H.State.Blocklist(), d.Cfg.Server.TrustProxy, d.Cfg.Server.TrustedProxies))
 	r.Use(middleware.Instrument(d.H.MetricsReg))
 	// Audit every authenticated mutation; handlers may add richer entries.
 	middleware.MutationHook = d.H.AuditMutation
@@ -59,8 +59,11 @@ func New(d Deps) http.Handler {
 	openCORS := middleware.OpenCORS()
 	strictCORS := middleware.StrictCORS(d.Cfg.Server.PublicURL)
 
+	clientIP := func(r *http.Request) string {
+		return middleware.ClientIPWithProxies(r, d.Cfg.Server.TrustProxy, d.Cfg.Server.TrustedProxies)
+	}
 	ipKey := func(r *http.Request) string {
-		return middleware.ClientIP(r, d.Cfg.Server.TrustProxy)
+		return clientIP(r)
 	}
 	widgetKey := func(r *http.Request) string {
 		p, _ := middleware.ProjectFrom(r.Context())
@@ -68,7 +71,7 @@ func New(d Deps) http.Handler {
 		if p != nil {
 			pid = p.ID
 		}
-		return pid + "|" + middleware.ClientIP(r, d.Cfg.Server.TrustProxy)
+		return pid + "|" + clientIP(r)
 	}
 
 	// ---- static assets (fonts + docs), always public ----

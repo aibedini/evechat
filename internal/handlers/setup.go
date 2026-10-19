@@ -29,7 +29,7 @@ const (
 // setupAuthorized enforces the anti-hijack token: loopback requests are trusted,
 // remote requests must present X-Setup-Token.
 func (h *Handlers) setupAuthorized(r *http.Request) bool {
-	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	ip := middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies)
 	if ip == "127.0.0.1" || ip == "::1" || ip == "localhost" {
 		return true
 	}

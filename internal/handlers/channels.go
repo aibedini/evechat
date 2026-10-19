@@ -163,7 +163,7 @@ func (h *Handlers) TestChannel(w http.ResponseWriter, r *http.Request) error {
 	body, _ := json.Marshal(sample)
 	res, ierr := h.Channels.Ingest(r.Context(), services.IngestInput{
 		Channel: ch, Body: body, Method: http.MethodPost,
-		RemoteIP: middleware.ClientIP(r, h.Cfg.Server.TrustProxy),
+		RemoteIP: middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies),
 	})
 	if ierr != nil {
 		return ierr
@@ -241,7 +241,7 @@ func (h *Handlers) ChannelInbound(w http.ResponseWriter, r *http.Request) error 
 	if rerr != nil {
 		return apierr.BadRequest("بدنه درخواست خوانده نشد")
 	}
-	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	ip := middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies)
 	inbox := &repo.InboxEntry{
 		ID: id.NewPrefixed(id.PrefixInbox), ChannelID: &ch.ID, ProjectID: &ch.ProjectID,
 		Method: r.Method, RemoteIP: ip, Status: "received", Body: services.ScrubBody(body),

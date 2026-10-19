@@ -4,7 +4,10 @@
 #   * flush_interval -1 is mandatory: without it Caddy buffers responses and
 #     the SSE fallback (/api/widget/v1/events) breaks.
 #   * set server.trust_proxy: true in evechat.yaml so rate limiting sees the
-#     real client IP from X-Forwarded-For.
+#     real client IP from X-Forwarded-For, and keep the proxy's address in
+#     server.trusted_proxies (127.0.0.1/32 and ::1/128 by default).
+#   * Caddy overwrites X-Forwarded-For with {remote_host}; never use
+#     {http.request.header.X-Forwarded-For}, which would keep a client value.
 #   * the dashboard websocket (/ws/) upgrades automatically; no extra config.
 
 chat.example.com {

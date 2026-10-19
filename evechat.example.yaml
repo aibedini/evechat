@@ -6,6 +6,12 @@ server:
   port: 3000
   public_url: "https://chat.example.com"
   trust_proxy: true
+  # Only sockets from these networks may supply X-Forwarded-For / X-Real-IP.
+  # A proxy on this host connects over loopback, so the defaults are enough.
+  # Add the proxy address (for example 10.0.0.0/8) only when it is remote.
+  trusted_proxies:
+    - "127.0.0.1/32"
+    - "::1/128"
   read_timeout: "15s"
   write_timeout: "15s"
   shutdown_timeout: "20s"

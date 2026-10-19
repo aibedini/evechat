@@ -133,6 +133,7 @@ sudo -u evechat /opt/evechat/evechat setup
 | `server.host` / `server.port` | `0.0.0.0` / `3000` | آدرس شنود |
 | `server.public_url` | `http://localhost:3000` | آدرس عمومی، مبنای CORS و کد embed |
 | `server.trust_proxy` | `false` | پشت nginx/Caddy مقدار `true` شود |
+| `server.trusted_proxies` | `127.0.0.1/32` و `::1/128` | فقط اتصال مستقیم از این شبکه‌ها می‌تواند `X-Forwarded-For` بفرستد |
 | `database.path` | `/data/evechat.db` | فایل SQLite |
 | `storage.uploads_dir` | `/data/uploads` | پوشه پیوست‌ها |
 | `auth.jwt_secret` | — | **الزامی**، فقط از محیط |

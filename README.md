@@ -39,6 +39,16 @@ evechat update --check
 curl -s localhost:3000/metrics | head
 ```
 
+## Behind a reverse proxy
+
+Set `server.trust_proxy: true`, keep the proxy in `server.trusted_proxies`
+(loopback by default), and make the proxy **overwrite** `X-Forwarded-For` with
+the address it saw — nginx: `proxy_set_header X-Forwarded-For $remote_addr;`,
+Caddy: `header_up X-Forwarded-For {remote_host}`. EveChat reads the header from
+the right and skips trusted hops, so a client-supplied value on the left never
+wins. Examples: [deploy/nginx](deploy/nginx/evechat.conf),
+[deploy/caddy](deploy/caddy/Caddyfile), [deploy/traefik](deploy/traefik/dynamic.yml).
+
 ## Documentation
 
 - [docs/INSTALL.fa.md](docs/INSTALL.fa.md) — نصب، سرویس، TLS، آفلاین

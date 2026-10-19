@@ -163,7 +163,7 @@ func (h *Handlers) WidgetSession(w http.ResponseWriter, r *http.Request) error {
 			return apierr.New(http.StatusForbidden, "pow_required", "برای ادامه، چالش امنیتی را حل کنید")
 		}
 	}
-	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	ip := middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies)
 	h.State.Throttle().Hit(ip)
 
 	v, sess, err := h.Visitors.IdentifyOrCreate(r.Context(), services.SessionRequest{
@@ -485,7 +485,7 @@ func (h *Handlers) WidgetChallenge(w http.ResponseWriter, r *http.Request) error
 		writeJSON(w, http.StatusOK, map[string]any{"challenge": "", "difficulty": 0, "expires_at": 0})
 		return nil
 	}
-	ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+	ip := middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies)
 	difficulty := security.DifficultyFor(base, h.State.Throttle().Count(ip))
 	if token := strings.TrimSpace(r.URL.Query().Get("token")); token != "" {
 		if sess, err := h.Repo.Sessions.Get(r.Context(), token); err == nil {

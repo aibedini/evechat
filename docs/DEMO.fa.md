@@ -55,7 +55,8 @@
 
 ## امنیت
 
-- گیت loopback با `middleware.ClientIP(r, trust_proxy)`؛ هدر `X-Forwarded-For`
-  فقط وقتی `trust_proxy=true` باشد اثر دارد.
+- گیت loopback با `middleware.ClientIPWithProxies`؛ هدر `X-Forwarded-For`
+  فقط وقتی `trust_proxy=true` باشد و اتصال از یکی از `server.trusted_proxies`
+  آمده باشد اثر دارد.
 - کلید پروژه با escape مخصوص رشته‌ی JS تزریق می‌شود (`< > & " \`).
 - صفحه‌ها `Cache-Control: no-store` دارند تا کلید در کش مشترک نماند.

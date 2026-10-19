@@ -6,7 +6,10 @@ maps to code in this repository.
 ## Transport & deployment
 
 - Terminate TLS with Caddy/nginx/Traefik (`deploy/`); set
-  `server.trust_proxy: true` so rate limits key on the real IP.
+  `server.trust_proxy: true` so rate limits key on the real IP. Keep the proxy
+  in `server.trusted_proxies` (loopback only by default) and make it overwrite
+  `X-Forwarded-For`; EveChat walks the header right-to-left and skips trusted
+  hops, so a client-supplied value cannot spoof the address.
 - The dashboard sends `Content-Security-Policy`, `X-Content-Type-Options`,
   `Referrer-Policy` and `Permissions-Policy` (`middleware/security.go`).
   The widget endpoint deliberately omits `X-Frame-Options` so it can be embedded.

@@ -242,7 +242,7 @@ func (h *Handlers) recordAudit(r *http.Request, projectID, action, targetType, t
 		Action:     action,
 		TargetType: targetType,
 		TargetID:   targetID,
-		IP:         middleware.ClientIP(r, h.Cfg.Server.TrustProxy),
+		IP:         middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies),
 		UserAgent:  r.UserAgent(),
 		Detail:     detail,
 	}

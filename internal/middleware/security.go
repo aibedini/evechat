@@ -38,10 +38,10 @@ func isDashboardPath(path string) bool {
 }
 
 // Blocklist rejects callers matched by the runtime IP/UA/CIDR rules.
-func Blocklist(bl *security.Blocklist, trustProxy bool) func(http.Handler) http.Handler {
+func Blocklist(bl *security.Blocklist, trustProxy bool, trustedProxies []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if bl != nil && bl.Blocked(ClientIP(r, trustProxy), r.UserAgent()) {
+			if bl != nil && bl.Blocked(ClientIPWithProxies(r, trustProxy, trustedProxies), r.UserAgent()) {
 				apierr.Write(w, apierr.Forbidden("دسترسی شما مسدود شده است"))
 				return
 			}

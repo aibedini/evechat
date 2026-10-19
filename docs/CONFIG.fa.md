@@ -11,7 +11,8 @@
 | `host` | `0.0.0.0` | آدرس شنود |
 | `port` | `3000` | پورت |
 | `public_url` | `http://localhost:3000` | آدرس عمومی؛ CORS، لینک‌ها و کد embed از آن ساخته می‌شود |
-| `trust_proxy` | `false` | اعتماد به `X-Forwarded-For` (پشت پروکسی `true`) |
+| `trust_proxy` | `false` | اعتماد به سرآیندهای `X-Forwarded-For` و `X-Real-IP` (پشت پروکسی `true`) |
+| `trusted_proxies` | `127.0.0.1/32` و `::1/128` | فقط اتصال مستقیم از این شبکه‌ها اجازه دارد سرآیند ارسال کند؛ آدرس یا CIDR |
 | `read_timeout` | `15s` | تایم‌اوت خواندن |
 | `shutdown_timeout` | `20s` | مهلت خاموشی نرم |
 | `tls.enabled` | `false` | سرو TLS مستقیم |

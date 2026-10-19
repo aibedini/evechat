@@ -49,7 +49,7 @@ func (h *Handlers) Metrics(w http.ResponseWriter, r *http.Request) error {
 	}
 	if token := strings.TrimSpace(h.Cfg.Metrics.Token); token != "" {
 		got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer"))
-		ip := middleware.ClientIP(r, h.Cfg.Server.TrustProxy)
+		ip := middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies)
 		loopback := ip == "127.0.0.1" || ip == "::1"
 		if !loopback && got != token {
 			return apierr.Unauthorized("توکن متریک نامعتبر است")
