@@ -37,9 +37,32 @@ EVECHAT_BASE=http://127.0.0.1:3000 npx playwright test
 
 The widget test page the suite drives is `GET /demo/test` (loopback only).
 
+## Setup wizard
+
+`wizard.spec.ts` needs an **unconfigured** instance, so it is opt-in and the
+regular behaviour job skips it. `make fresh` (or `scripts/fresh.ps1` on
+Windows) creates a throwaway instance: a temporary data directory, a free port,
+temporary keys, and a setup token. It prints the URL and token and deletes
+everything on Ctrl+C; it never touches `./data` or `./evechat.yaml`.
+
+```powershell
+make fresh          # or: powershell -File scripts/fresh.ps1
+$env:EVECHAT_BASE = "http://127.0.0.1:<port>"
+$env:EVECHAT_SETUP_TOKEN = "<printed token>"
+$env:EVECHAT_WIZARD = "1"
+cd web/e2e; npx playwright test wizard.spec.ts
+```
+
+The spec covers the loopback path (no token page), the token gate for a
+simulated remote peer (`X-Forwarded-For` from the trusted loopback proxy), a
+wrong token (Persian error), the correct token, 375px and 1440px layouts with
+44px touch targets, and the 404 after setup completes. Screenshots land in
+`docs/screenshots/wizard/`.
+
 ## CI
 
 `.github/workflows/e2e.yml` job `behavior` builds the binary, starts an
-instance on port 3212, and runs **all** specs (`behavior.spec.ts` and
-`responsive.spec.ts`). A red run fails the workflow, so the
+instance on port 3212, and runs the behaviour and responsive specs. The
+`wizard` job starts a second, unconfigured instance on port 3214 and runs
+`wizard.spec.ts` with `EVECHAT_WIZARD=1`. A red run fails the workflow, so the
 pull request cannot merge with a broken behaviour.

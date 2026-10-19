@@ -7,7 +7,7 @@ GOFLAGS := -trimpath
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)
 
 .PHONY: all build widget dashboard setup fonts go test test-widget lint fmt migrate seed dev docker \
-        release-local checksums bundle image-bundle clean
+        release-local checksums bundle image-bundle clean fresh
 
 all: build
 
@@ -42,6 +42,14 @@ dev:
 	(cd web/dashboard && npm run dev) & \
 	(cd web/widget && npm run dev) & \
 	wait
+
+## fresh: throwaway instance for the setup wizard (PowerShell; never touches ./data)
+fresh:
+ifeq ($(OS),Windows_NT)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fresh.ps1
+else
+	pwsh -NoProfile -File scripts/fresh.ps1
+endif
 
 test:
 	CGO_ENABLED=0 go test ./... -count=1

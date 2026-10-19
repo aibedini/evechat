@@ -26,6 +26,14 @@ interface SetupResult {
   embed_snippet: string;
 }
 
+class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 const app = document.getElementById("app") as HTMLElement;
 const state = {
   step: 1,
@@ -40,6 +48,19 @@ const state = {
   error: "",
   busy: false,
   setupToken: localStorage.getItem("evechat:setup-token") || "",
+  tokenRequired: false,
+};
+
+// The wizard shows these labels instead of the raw doctor check ids/names.
+const checkLabels: Record<string, string> = {
+  "fs.data": "فضای ذخیره‌سازی",
+  "db.open": "پایگاه داده",
+  "net.port": "پورت",
+  "config.keys": "کلیدهای امنیتی",
+  "time.skew": "ساعت سرور",
+  "net.outbound": "دسترسی اینترنت (اختیاری)",
+  "assets.font": "فونت",
+  "assets.dashboard": "فایل‌های پنل",
 };
 
 const stepTitles = [
@@ -73,7 +94,7 @@ async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> 
     data = null;
   }
   if (!res.ok) {
-    throw new Error(data?.message || `خطای سرور (${res.status})`);
+    throw new ApiError(data?.message || `خطای سرور (${res.status})`, res.status);
   }
   return data as T;
 }
@@ -93,23 +114,41 @@ function errorBox(): string {
 function checkRow(c: Check): string {
   const icon = c.ok ? '<span class="good">✓</span>' : `<span class="${c.fatal ? "bad" : "muted"}">${c.fatal ? "✗" : "!"}</span>`;
   const fix = !c.ok && c.fix ? `<div class="fix">راه‌حل: ${esc(c.fix)}</div>` : "";
-  return `<div class="check"><span class="icon">${icon}</span><div><div>${esc(c.name)} — ${esc(c.message)}</div>${fix}</div></div>`;
+  const label = checkLabels[c.id] || c.name;
+  return `<div class="check"><span class="icon">${icon}</span><div><div>${esc(label)} — ${esc(c.message)}</div>${fix}</div></div>`;
 }
 
 function renderStep1(): string {
+  if (state.tokenRequired) {
+    return `<div class="card" data-testid="setup-token-gate">
+      <h2>رمز نصب را وارد کنید</h2>
+      <p class="sub">
+        برای اینکه فقط صاحب سرور بتواند نصب را تمام کند، این رمز لازم است. آن را در فایل
+        <code>data/setup-token.txt</code> کنار پایگاه داده، یا در لاگ سرور
+        (برای داکر: <code>docker logs evechat</code>) پیدا می‌کنید.
+      </p>
+      <div class="field">
+        <label for="setupToken">رمز نصب</label>
+        <input id="setupToken" dir="ltr" autocomplete="off" spellcheck="false"
+          placeholder="از فایل setup-token.txt یا لاگ سرور" value="${esc(state.setupToken)}" />
+      </div>
+      ${errorBox()}
+      <div class="actions">
+        <button class="btn btn-primary" id="checkToken">بررسی رمز</button>
+      </div>
+    </div>`;
+  }
+
   const hardFail = state.checks.some((c) => !c.ok && c.fatal);
+  const loaded = state.status !== null;
   return `<div class="card">
-    <h2>به EveChat خوش آمدید</h2>
-    <p class="sub">در چند گام کوتاه، سرور، حساب مدیر و اولین پروژه را آماده می‌کنیم.</p>
+    <h2>خوش آمدید</h2>
+    <p class="sub">چند دقیقه‌ی دیگر چت پشتیبانی‌تان آماده است. اول بررسی می‌کنیم سرور سالم است.</p>
     <div>${state.checks.length ? state.checks.map(checkRow).join("") : '<div class="muted">در حال بررسی…</div>'}</div>
     <div class="actions">
-      <button class="btn btn-primary" id="start" ${hardFail ? "disabled" : ""}>شروع</button>
+      <button class="btn btn-primary" id="start" ${hardFail || !loaded ? "disabled" : ""}>شروع</button>
       <button class="btn btn-ghost" id="recheck">بررسی مجدد</button>
       <span class="spacer"></span>
-    </div>
-    <div class="field" style="margin-top:18px">
-      <label>توکن نصب (فقط برای نصب از راه دور لازم است)</label>
-      <input id="setupToken" dir="ltr" placeholder="از خروجی سرور یا setup-token.txt" value="${esc(state.setupToken)}" />
     </div>
     ${errorBox()}
   </div>`;
@@ -128,7 +167,7 @@ function strength(pw: string): number {
 function renderStep2(): string {
   return `<div class="card">
     <h2>حساب مدیر</h2>
-    <p class="sub">این حساب به همه بخش‌ها دسترسی دارد.</p>
+    <p class="sub">این حساب به همه‌چیز دسترسی دارد. رمز را جای امنی نگه دارید.</p>
     <div class="field"><label>نام</label><input id="adminName" value="${esc(state.admin.name)}" /></div>
     <div class="field"><label>ایمیل</label><input id="adminEmail" dir="ltr" type="email" value="${esc(state.admin.email)}" placeholder="admin@example.com" /></div>
     <div class="field"><label>رمز عبور (حداقل ۸ کاراکتر)</label>
@@ -144,7 +183,7 @@ function renderStep2(): string {
 function renderStep3(): string {
   return `<div class="card">
     <h2>اولین پروژه</h2>
-    <p class="sub">پروژه، کلید ویجت و دامنه‌های مجاز را مشخص می‌کند.</p>
+    <p class="sub">پروژه یعنی یک سایت یا سرویس شما. «دامنه‌های مجاز»: فقط از این سایت‌ها ویجت کار می‌کند. اگر خالی بگذارید از هر سایتی کار می‌کند؛ این فقط برای آزمایش است.</p>
     <div class="field"><label>نام پروژه</label><input id="projectName" value="${esc(state.project.name)}" /></div>
     <div class="field"><label>دامنه‌های مجاز (Enter برای افزودن)</label>
       <input id="domainInput" dir="ltr" placeholder="eve.ir" value="${esc(state.domainInput)}" />
@@ -190,7 +229,7 @@ function integrationCard(key: string, title: string, fields: [string, string, st
 function renderStep4(): string {
   return `<div class="card">
     <h2>یکپارچه‌سازی‌ها</h2>
-    <p class="sub">همه اختیاری هستند؛ هر زمان از پنل قابل تغییرند.</p>
+    <p class="sub">همه اختیاری‌اند و بعداً هم از تنظیمات می‌شود اضافه کرد.</p>
     ${integrationCard("telegram", "تلگرام", [
       ["token", "توکن ربات (BotFather)", "password"],
       ["secret", "کلید وب‌هوک (اختیاری)", "text"],
@@ -227,8 +266,8 @@ function renderStep5(): string {
   const r = state.result;
   if (!r) return `<div class="card"><h2>پایان</h2><p class="sub">در حال نهایی‌سازی…</p></div>`;
   return `<div class="card">
-    <h2>EveChat آماده است 🎉</h2>
-    <p class="sub">اطلاعات زیر را جای امنی ذخیره کنید.</p>
+    <h2>آماده است!</h2>
+    <p class="sub">کد زیر را قبل از <code>&lt;/body&gt;</code> سایت‌تان بچسبانید. اطلاعات ورود را هم جای امنی ذخیره کنید.</p>
     <div class="success-box">
       <div class="cred"><span>پنل</span><code>${esc(r.dashboard_url)}</code></div>
       <div class="cred"><span>ایمیل</span><code>${esc(r.admin_email)}</code></div>
@@ -273,7 +312,28 @@ function bind(): void {
     tokenInput?.addEventListener("input", () => {
       state.setupToken = tokenInput.value.trim();
       localStorage.setItem("evechat:setup-token", state.setupToken);
+      state.error = "";
     });
+    if (state.tokenRequired) {
+      const submitToken = async () => {
+        state.setupToken = (tokenInput?.value || "").trim();
+        localStorage.setItem("evechat:setup-token", state.setupToken);
+        if (!state.setupToken) {
+          state.error = "رمز نصب را وارد کنید.";
+          render();
+          return;
+        }
+        await loadStatus();
+      };
+      on("checkToken", "click", submitToken);
+      tokenInput?.addEventListener("keydown", (ev) => {
+        if ((ev as KeyboardEvent).key === "Enter") {
+          ev.preventDefault();
+          void submitToken();
+        }
+      });
+      return;
+    }
     on("start", "click", () => {
       state.step = 2;
       state.error = "";
@@ -520,6 +580,8 @@ async function loadStatus(rerunChecks = false): Promise<void> {
     }
     const status = await api<Status>("/api/setup/status");
     state.status = status;
+    state.tokenRequired = false;
+    state.error = "";
     state.checks = status.checks || [];
     if (!status.setup_required) {
       location.assign("/inbox");
@@ -531,7 +593,16 @@ async function loadStatus(rerunChecks = false): Promise<void> {
       await loadStatus(true);
     }
   } catch (err) {
-    state.error = (err as Error).message;
+    const code = err instanceof ApiError ? err.status : 0;
+    if (code === 401) {
+      state.tokenRequired = true;
+      state.step = 1;
+      state.error = state.setupToken
+        ? "رمز درست نیست. دوباره از فایل کپی کنید؛ فاصله‌ی اضافه‌ی اول یا آخر را نگیرید."
+        : "";
+    } else {
+      state.error = (err as Error).message;
+    }
     render();
   }
 }

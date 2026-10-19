@@ -153,7 +153,7 @@ func printSetupBox(res *setup.Result, showPassword bool) {
 		"کلید پروژه: " + res.ProjectKey,
 	})
 	fmt.Println()
-	fmt.Println("کد embed:")
+	fmt.Println("کد نصب — این کد را قبل از </body> سایت‌تان بچسبانید:")
 	fmt.Println(res.EmbedSnippet)
 	fmt.Println()
 }
@@ -161,6 +161,8 @@ func printSetupBox(res *setup.Result, showPassword bool) {
 func runSetupWizard(plan setup.Plan) {
 	ctx := context.Background()
 	tui.Title("نصب و راه‌اندازی EveChat")
+	fmt.Println("چند دقیقه‌ی دیگر چت پشتیبانی‌تان آماده است. اول بررسی می‌کنیم سرور سالم است.")
+	fmt.Println()
 
 	// Step 1 — preflight
 	tui.Step(1, 8, "بررسی پیش‌نیازها")
@@ -187,6 +189,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 2 — data dirs
 	tui.Step(2, 8, "مسیر داده‌ها")
+	fmt.Println("داده‌های این نصب (پایگاه داده و پیوست‌ها) اینجا ذخیره می‌شود. برای نصب واقعی پوشه‌ای با دسترسی محدود انتخاب کنید.")
 	plan.DataDir = tui.Ask("پوشه داده‌ها", plan.DataDir, func(v string) error {
 		if strings.TrimSpace(v) == "" {
 			return fmt.Errorf("مسیر نمی‌تواند خالی باشد")
@@ -201,6 +204,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 3 — address
 	tui.Step(3, 8, "آدرس و پورت")
+	fmt.Println("پورت باید آزاد باشد. اگر پشت nginx/Caddy هستید، آدرس عمومی https بدهید و به سؤال بعدی «بله» بگویید.")
 	plan.Port = atoiOr(tui.Ask("پورت سرور", strconv.Itoa(plan.Port), func(v string) error {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 || n > 65535 {
@@ -218,6 +222,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 4 — keys
 	tui.Step(4, 8, "کلیدهای امنیتی")
+	fmt.Println("این کلیدها پیام‌ها و نشست‌ها را محافظت می‌کنند. اگر گم شوند، پیام‌های قدیمی قابل بازیابی نیستند.")
 	choice := tui.Menu("کلیدهای امنیتی", []tui.MenuItem{
 		{Label: "تولید خودکار کلیدها (پیشنهادی)"},
 		{Label: "وارد کردن کلیدهای موجود"},
@@ -235,6 +240,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 5 — admin
 	tui.Step(5, 8, "حساب مدیر")
+	fmt.Println("این حساب به همه‌چیز دسترسی دارد. رمز را جای امنی نگه دارید.")
 	plan.AdminName = tui.Ask("نام مدیر", plan.AdminName, nil)
 	plan.AdminEmail = tui.Ask("ایمیل مدیر", plan.AdminEmail, func(v string) error {
 		if !strings.Contains(v, "@") {
@@ -264,6 +270,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 6 — project
 	tui.Step(6, 8, "اولین پروژه")
+	fmt.Println("پروژه یعنی یک سایت یا سرویس شما. «دامنه‌های مجاز»: فقط از این سایت‌ها ویجت کار می‌کند. اگر خالی بگذارید از هر سایتی کار می‌کند؛ این فقط برای آزمایش است.")
 	plan.ProjectName = tui.Ask("نام پروژه", plan.ProjectName, nil)
 	domainsRaw := tui.Ask("دامنه‌های مجاز (با کاما، خالی = حالت توسعه)", "", nil)
 	if strings.TrimSpace(domainsRaw) == "" {
@@ -283,6 +290,7 @@ func runSetupWizard(plan setup.Plan) {
 
 	// Step 7 — integrations (optional)
 	tui.Step(7, 8, "یکپارچه‌سازی‌ها (اختیاری)")
+	fmt.Println("همه اختیاری‌اند و بعداً هم از تنظیمات می‌شود اضافه کرد.")
 	selected := tui.MultiSelect("کدام سرویس‌ها را می‌خواهید؟", []string{
 		"تلگرام (ربات پشتیبانی)",
 		"EVE (شناسایی کاربر)",
@@ -341,7 +349,7 @@ func runSetupWizard(plan setup.Plan) {
 	}
 
 	// Step 8 — apply
-	tui.Step(8, 8, "پایان")
+	tui.Step(8, 8, "آماده است!")
 	res, err := setup.Apply(ctx, plan)
 	if err != nil {
 		fatalf("%v", err)

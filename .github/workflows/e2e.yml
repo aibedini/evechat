@@ -147,3 +147,61 @@ jobs:
       - name: server log on failure
         if: failure()
         run: tail -n 100 "$RUNNER_TEMP/behavior/server.log"
+
+  wizard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: build binary
+        run: CGO_ENABLED=0 go build -o evechat ./cmd/evechat
+      - name: install playwright
+        working-directory: web/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: start an unconfigured instance
+        run: |
+          set -euo pipefail
+          DIR="$RUNNER_TEMP/wizard"; mkdir -p "$DIR/data"
+          printf 'EVECHAT_AUTH__JWT_SECRET=%s\nEVECHAT_ENCRYPTION_KEY_V1=%s\n' \
+            "$(openssl rand -base64 48)" "$(openssl rand -base64 32)" > "$DIR/.env"
+          cat > "$DIR/evechat.yaml" <<'EOF'
+          server:
+            host: "127.0.0.1"
+            port: 3214
+            public_url: "http://127.0.0.1:3214"
+            trust_proxy: true
+            trusted_proxies:
+              - "127.0.0.1/32"
+              - "::1/128"
+          database:
+            path: "DATA_DIR/evechat.db"
+          storage:
+            uploads_dir: "DATA_DIR/uploads"
+          log:
+            level: "warn"
+          EOF
+          sed -i "s|DATA_DIR|$DIR/data|g" "$DIR/evechat.yaml"
+          nohup ./evechat --config "$DIR/evechat.yaml" serve > "$DIR/server.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3214/api/v1/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3214/api/v1/health
+          test -s "$DIR/data/setup-token.txt"
+          echo "EVECHAT_SETUP_TOKEN=$(cat "$DIR/data/setup-token.txt")" >> "$GITHUB_ENV"
+          echo "EVECHAT_BASE=http://127.0.0.1:3214" >> "$GITHUB_ENV"
+      - name: wizard suite
+        working-directory: web/e2e
+        env:
+          EVECHAT_WIZARD: "1"
+        run: npx playwright test wizard.spec.ts
+      - name: server log on failure
+        if: failure()
+        run: tail -n 100 "$RUNNER_TEMP/wizard/server.log"
