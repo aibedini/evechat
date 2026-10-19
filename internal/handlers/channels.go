@@ -3,8 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/textproto"
 	"strings"
 
 	"github.com/evechat/evechat/internal/apierr"
@@ -17,12 +19,14 @@ import (
 
 // channelInput is the editable surface of a channel.
 type channelInput struct {
-	Name           string          `json:"name"`
-	Kind           string          `json:"kind"`
-	OutboundURL    string          `json:"outbound_url"`
-	OutboundSecret string          `json:"outbound_secret"`
-	Mapping        json.RawMessage `json:"mapping"`
-	IsActive       *bool           `json:"is_active"`
+	Name            string            `json:"name"`
+	Kind            string            `json:"kind"`
+	OutboundURL     string            `json:"outbound_url"`
+	OutboundSecret  string            `json:"outbound_secret"`
+	OutboundHeaders map[string]string `json:"outbound_headers"`
+	SessionTTL      *int              `json:"session_ttl_seconds"`
+	Mapping         json.RawMessage   `json:"mapping"`
+	IsActive        *bool             `json:"is_active"`
 }
 
 var channelKinds = map[string]bool{"webhook": true, "telegram": true, "sms": true, "custom": true}
@@ -58,7 +62,13 @@ func (h *Handlers) CreateChannel(w http.ResponseWriter, r *http.Request) error {
 		InboundSecret: id.Token(24),
 		Mapping:       validated.Mapping,
 		IsActive:      validated.Active,
+		SessionTTL:    validated.SessionTTL,
 	}
+	headers, err := mergeChannelHeaders(validated.OutboundHeaders, nil)
+	if err != nil {
+		return err
+	}
+	ch.OutboundHeaders = headers
 	if validated.OutboundURL != "" {
 		ch.OutboundURL = &validated.OutboundURL
 	}
@@ -101,6 +111,14 @@ func (h *Handlers) UpdateChannel(w http.ResponseWriter, r *http.Request) error {
 	ch.Kind = validated.Kind
 	ch.Mapping = validated.Mapping
 	ch.IsActive = validated.Active
+	headers, err := mergeChannelHeaders(validated.OutboundHeaders, ch.OutboundHeaders)
+	if err != nil {
+		return err
+	}
+	ch.OutboundHeaders = headers
+	if validated.SessionTTLSet {
+		ch.SessionTTL = validated.SessionTTL
+	}
 	if validated.OutboundURL == "" {
 		ch.OutboundURL = nil
 	} else {
@@ -146,7 +164,9 @@ func (h *Handlers) RotateChannelSecret(w http.ResponseWriter, r *http.Request) e
 	return ok(w, map[string]any{"inbound_secret": secret})
 }
 
-// TestChannel sends a sample inbound payload through the ingest pipeline.
+// TestChannel sends a real outbound test callback and records a masked row in
+// the inspector. It is the only way to verify that configured headers (for
+// example X-API-Key) actually reach the Android bridge.
 func (h *Handlers) TestChannel(w http.ResponseWriter, r *http.Request) error {
 	ch, err := h.channelOf(r)
 	if err != nil {
@@ -155,20 +175,10 @@ func (h *Handlers) TestChannel(w http.ResponseWriter, r *http.Request) error {
 	if h.Channels == nil {
 		return apierr.BadRequest("کانال‌ها فعال نیستند")
 	}
-	sample := map[string]any{
-		"external_id": "test_" + id.New(),
-		"name":        "تست کانال",
-		"message":     "این یک پیام آزمایشی از کانال است",
+	if ch.OutboundURL == nil || strings.TrimSpace(*ch.OutboundURL) == "" {
+		return apierr.BadRequest("برای ارسال آزمایشی، آدرس بازگشت کانال را تنظیم کنید")
 	}
-	body, _ := json.Marshal(sample)
-	res, ierr := h.Channels.Ingest(r.Context(), services.IngestInput{
-		Channel: ch, Body: body, Method: http.MethodPost,
-		RemoteIP: middleware.ClientIPWithProxies(r, h.Cfg.Server.TrustProxy, h.Cfg.Server.TrustedProxies),
-	})
-	if ierr != nil {
-		return ierr
-	}
-	return ok(w, res)
+	return ok(w, h.Channels.TestOutbound(r.Context(), ch))
 }
 
 // PreviewChannelMapping resolves a sample payload against a mapping without
@@ -272,9 +282,17 @@ func (h *Handlers) ChannelInbound(w http.ResponseWriter, r *http.Request) error 
 
 type validatedChannel struct {
 	Name, Kind, OutboundURL, OutboundSecret string
+	OutboundHeaders                         map[string]string
+	SessionTTL                              int
+	SessionTTLSet                           bool
 	Mapping                                 json.RawMessage
 	Active                                  bool
 }
+
+const (
+	defaultSessionTTL = 86400
+	maxSessionTTL     = 30 * 24 * 60 * 60
+)
 
 func (h *Handlers) validateChannelInput(r *http.Request) (*validatedChannel, error) {
 	var in channelInput
@@ -306,14 +324,114 @@ func (h *Handlers) validateChannelInput(r *http.Request) (*validatedChannel, err
 			return nil, apierr.BadRequest("آدرس بازگشت کانال به مقصد مجاز اشاره نمی‌کند")
 		}
 	}
+	headers, err := validateChannelHeaders(in.OutboundHeaders)
+	if err != nil {
+		return nil, err
+	}
+	ttl := defaultSessionTTL
+	ttlSet := false
+	if in.SessionTTL != nil {
+		ttl = *in.SessionTTL
+		ttlSet = true
+		if ttl < 0 || ttl > maxSessionTTL {
+			return nil, apierr.BadRequest(fmt.Sprintf("مدت ادامه‌ی گفتگو باید بین ۰ و %d ثانیه باشد", maxSessionTTL))
+		}
+	}
 	active := true
 	if in.IsActive != nil {
 		active = *in.IsActive
 	}
 	return &validatedChannel{
 		Name: name, Kind: kind, OutboundURL: outbound, OutboundSecret: strings.TrimSpace(in.OutboundSecret),
+		OutboundHeaders: headers, SessionTTL: ttl, SessionTTLSet: ttlSet,
 		Mapping: mapping, Active: active,
 	}, nil
+}
+
+// forbiddenChannelHeaders are set by net/http itself and cannot be overridden
+// by a channel.
+var forbiddenChannelHeaders = map[string]bool{
+	"Host": true, "Content-Length": true, "Transfer-Encoding": true,
+	"Connection": true, "Upgrade": true, "Keep-Alive": true,
+	"Proxy-Connection": true, "Trailer": true, "Te": true,
+}
+
+func validHeaderName(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	const extra = "!#$%&'*+-.^_`|~"
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			continue
+		}
+		if !strings.ContainsRune(extra, rune(c)) {
+			return false
+		}
+	}
+	return true
+}
+
+// validateChannelHeaders canonicalizes names and checks values. A masked value
+// is allowed here; mergeChannelHeaders resolves it against the stored map.
+func validateChannelHeaders(in map[string]string) (map[string]string, error) {
+	if len(in) > 20 {
+		return nil, apierr.BadRequest("حداکثر ۲۰ هدر خروجی مجاز است")
+	}
+	out := make(map[string]string, len(in))
+	for rawName, rawValue := range in {
+		rawName = strings.TrimSpace(rawName)
+		if rawName == "" {
+			continue
+		}
+		name := textproto.CanonicalMIMEHeaderKey(rawName)
+		if !validHeaderName(name) {
+			return nil, apierr.BadRequest("نام هدر نامعتبر است: " + rawName)
+		}
+		if forbiddenChannelHeaders[name] {
+			return nil, apierr.BadRequest("این هدر را خود سرور تنظیم می‌کند: " + name)
+		}
+		value := strings.TrimSpace(rawValue)
+		if strings.ContainsAny(value, "\r\n") {
+			return nil, apierr.BadRequest("مقدار هدر نباید خط جدید داشته باشد")
+		}
+		if len(value) > 1024 {
+			return nil, apierr.BadRequest("مقدار هدر بیش از حد طولانی است: " + name)
+		}
+		if value == "" {
+			continue
+		}
+		out[name] = value
+	}
+	return out, nil
+}
+
+// mergeChannelHeaders keeps stored values when the UI sends the mask back.
+func mergeChannelHeaders(in, existing map[string]string) (map[string]string, error) {
+	clean, err := validateChannelHeaders(in)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(clean))
+	for name, value := range clean {
+		if value != repo.MaskedHeader {
+			out[name] = value
+			continue
+		}
+		stored := ""
+		for k, v := range existing {
+			if strings.EqualFold(k, name) {
+				stored = v
+				break
+			}
+		}
+		if stored == "" {
+			return nil, apierr.BadRequest("مقدار هدر حساس را دوباره وارد کنید: " + name)
+		}
+		out[name] = stored
+	}
+	return out, nil
 }
 
 func (h *Handlers) channelOf(r *http.Request) (*repo.Channel, error) {

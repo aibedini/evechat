@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/evechat/evechat/internal/db"
@@ -14,17 +15,49 @@ import (
 
 // Channel is one inbound/outbound integration endpoint.
 type Channel struct {
-	ID             string          `json:"id"`
-	ProjectID      string          `json:"project_id"`
-	Name           string          `json:"name"`
-	Kind           string          `json:"kind"`
-	InboundSecret  string          `json:"-"`
-	OutboundURL    *string         `json:"outbound_url,omitempty"`
-	OutboundSecret *string         `json:"-"`
-	Mapping        json.RawMessage `json:"mapping"`
-	IsActive       bool            `json:"is_active"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID              string            `json:"id"`
+	ProjectID       string            `json:"project_id"`
+	Name            string            `json:"name"`
+	Kind            string            `json:"kind"`
+	InboundSecret   string            `json:"-"`
+	OutboundURL     *string           `json:"outbound_url,omitempty"`
+	OutboundSecret  *string           `json:"-"`
+	OutboundHeaders map[string]string `json:"-"`
+	SessionTTL      int               `json:"session_ttl_seconds"`
+	Mapping         json.RawMessage   `json:"mapping"`
+	IsActive        bool              `json:"is_active"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
+}
+
+// MaskedHeader replaces a sensitive header value in every API response.
+const MaskedHeader = "••••••"
+
+// IsSensitiveHeader reports whether a header value must never be returned or
+// logged. X-API-Key, Authorization, cookies and signatures all match.
+func IsSensitiveHeader(name string) bool {
+	l := strings.ToLower(name)
+	for _, part := range []string{"key", "secret", "token", "auth", "password", "cookie", "signature"} {
+		if strings.Contains(l, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// MaskHeaders returns a copy safe for API responses; sensitive values become
+// MaskedHeader. The UI sends the mask back on update, and the handler merges
+// it with the stored value.
+func MaskHeaders(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		if IsSensitiveHeader(k) {
+			out[k] = MaskedHeader
+		} else {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // Public renders the channel without its secrets for API responses.
@@ -32,30 +65,37 @@ func (c *Channel) Public() map[string]any {
 	return map[string]any{
 		"id": c.ID, "project_id": c.ProjectID, "name": c.Name, "kind": c.Kind,
 		"outbound_url": c.OutboundURL, "mapping": c.Mapping,
-		"is_active": c.IsActive, "created_at": c.CreatedAt, "updated_at": c.UpdatedAt,
+		"outbound_headers":    MaskHeaders(c.OutboundHeaders),
+		"session_ttl_seconds": c.SessionTTL,
+		"is_active":           c.IsActive, "created_at": c.CreatedAt, "updated_at": c.UpdatedAt,
 	}
 }
 
 // ChannelRepo persists channels, their identities and the inbound inbox.
 type ChannelRepo struct{ db *db.DB }
 
-const channelCols = `id, project_id, name, kind, inbound_secret, outbound_url, outbound_secret, mapping, is_active, created_at, updated_at`
+const channelCols = `id, project_id, name, kind, inbound_secret, outbound_url, outbound_secret, outbound_headers, session_ttl_seconds, mapping, is_active, created_at, updated_at`
 
 func scanChannel(s scanner) (*Channel, error) {
 	var (
 		c       Channel
 		outURL  sql.NullString
 		outSec  sql.NullString
+		headers sql.NullString
 		mapping sql.NullString
 		created models.NullTime
 		updated models.NullTime
 	)
 	if err := s.Scan(&c.ID, &c.ProjectID, &c.Name, &c.Kind, &c.InboundSecret, &outURL, &outSec,
-		&mapping, &c.IsActive, &created, &updated); err != nil {
+		&headers, &c.SessionTTL, &mapping, &c.IsActive, &created, &updated); err != nil {
 		return nil, err
 	}
 	c.OutboundURL = str(outURL)
 	c.OutboundSecret = str(outSec)
+	c.OutboundHeaders = map[string]string{}
+	if headers.Valid && headers.String != "" {
+		_ = json.Unmarshal([]byte(headers.String), &c.OutboundHeaders)
+	}
 	if mapping.Valid && mapping.String != "" {
 		c.Mapping = json.RawMessage(mapping.String)
 	} else {
@@ -70,10 +110,12 @@ func scanChannel(s scanner) (*Channel, error) {
 func (r *ChannelRepo) Create(ctx context.Context, c *Channel) error {
 	now := models.NowStr()
 	_, err := r.db.W.ExecContext(ctx, `INSERT INTO channels
-		(id, project_id, name, kind, inbound_secret, outbound_url, outbound_secret, mapping, is_active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, project_id, name, kind, inbound_secret, outbound_url, outbound_secret, outbound_headers,
+		 session_ttl_seconds, mapping, is_active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.ID, c.ProjectID, c.Name, c.Kind, c.InboundSecret, toNullStr(c.OutboundURL),
-		toNullStr(c.OutboundSecret), string(c.Mapping), boolInt(c.IsActive), now, now)
+		toNullStr(c.OutboundSecret), headersJSON(c.OutboundHeaders), c.SessionTTL,
+		string(c.Mapping), boolInt(c.IsActive), now, now)
 	if err != nil {
 		return fmt.Errorf("creating channel: %w", err)
 	}
@@ -83,9 +125,11 @@ func (r *ChannelRepo) Create(ctx context.Context, c *Channel) error {
 // Update rewrites the editable fields of a channel.
 func (r *ChannelRepo) Update(ctx context.Context, c *Channel) error {
 	res, err := r.db.W.ExecContext(ctx, `UPDATE channels SET name = ?, kind = ?, outbound_url = ?,
-		outbound_secret = ?, mapping = ?, is_active = ?, updated_at = ? WHERE id = ?`,
+		outbound_secret = ?, outbound_headers = ?, session_ttl_seconds = ?, mapping = ?,
+		is_active = ?, updated_at = ? WHERE id = ?`,
 		c.Name, c.Kind, toNullStr(c.OutboundURL), toNullStr(c.OutboundSecret),
-		string(c.Mapping), boolInt(c.IsActive), models.NowStr(), c.ID)
+		headersJSON(c.OutboundHeaders), c.SessionTTL, string(c.Mapping),
+		boolInt(c.IsActive), models.NowStr(), c.ID)
 	if err != nil {
 		return fmt.Errorf("updating channel: %w", err)
 	}
@@ -93,6 +137,17 @@ func (r *ChannelRepo) Update(ctx context.Context, c *Channel) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func headersJSON(h map[string]string) string {
+	if len(h) == 0 {
+		return "{}"
+	}
+	b, err := json.Marshal(h)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // RotateSecret replaces the inbound secret.

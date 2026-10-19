@@ -7,6 +7,7 @@ import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Switch, Textarea, Select } from "@/components/ui/input";
 import { Card, Modal, Spinner } from "@/components/ui/card";
+import { Callout } from "@/components/Callout";
 import { EmptyState } from "@/components/EmptyState";
 import { FieldHelp } from "@/components/FieldHelp";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,13 +15,27 @@ import { cn, formatDateTime } from "@/lib/utils";
 
 const page = copy.pages.channels;
 
+interface HeaderRow {
+  key: string;
+  value: string;
+}
+
 interface ChannelForm {
   id: string;
   name: string;
   kind: string;
   outbound_url: string;
+  headers: HeaderRow[];
+  session_ttl_seconds: number;
   mapping: string;
   is_active: boolean;
+}
+
+interface OutboundTestResult {
+  ok: boolean;
+  status: number;
+  headers: Record<string, string>;
+  error?: string;
 }
 
 const DEFAULT_MAPPING = JSON.stringify(
@@ -39,6 +54,8 @@ const blank: ChannelForm = {
   name: "",
   kind: "webhook",
   outbound_url: "",
+  headers: [],
+  session_ttl_seconds: 86400,
   mapping: DEFAULT_MAPPING,
   is_active: true,
 };
@@ -52,6 +69,7 @@ export function ChannelsSettingsPage() {
   const [preview, setPreview] = useState("");
   const [sample, setSample] = useState('{"external_id":"user-42","name":"Test User","message":"hello"}');
   const [error, setError] = useState("");
+  const [testResult, setTestResult] = useState<OutboundTestResult | null>(null);
 
   const channels = useQuery({
     queryKey: ["channels"],
@@ -76,6 +94,10 @@ export function ChannelsSettingsPage() {
         name: form.name,
         kind: form.kind,
         outbound_url: form.outbound_url,
+        outbound_headers: Object.fromEntries(
+          form.headers.map((h) => [h.key.trim(), h.value.trim()]).filter(([key]) => key)
+        ),
+        session_ttl_seconds: Number(form.session_ttl_seconds) || 0,
         mapping,
         is_active: form.is_active,
       };
@@ -113,8 +135,13 @@ export function ChannelsSettingsPage() {
   });
 
   const test = useMutation({
-    mutationFn: (id: string) => api(`/api/v1/channels/${id}/test`, { method: "POST" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["channel-inbox"] }),
+    mutationFn: (id: string) =>
+      api<OutboundTestResult>(`/api/v1/channels/${id}/test`, { method: "POST" }),
+    onSuccess: (data) => {
+      setTestResult(data);
+      setError("");
+      qc.invalidateQueries({ queryKey: ["channel-inbox"] });
+    },
     onError: (err: any) => setError(err?.message || page.testError),
   });
 
@@ -169,6 +196,27 @@ export function ChannelsSettingsPage() {
         </div>
       )}
       {error && <div className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+      {testResult && (
+        <div className="mb-3">
+          <Callout tone={testResult.ok ? "success" : "warning"}>
+            <div>
+              {testResult.ok ? page.testOk : page.testFailed}
+              {testResult.status ? ` (${testResult.status})` : ""}
+            </div>
+            {testResult.error && <div dir="ltr" className="mt-1 text-[11px]">{testResult.error}</div>}
+            {Object.keys(testResult.headers).length > 0 && (
+              <div className="mt-2 text-[11px]">
+                {page.testSent}:
+                {Object.entries(testResult.headers).map(([key, value]) => (
+                  <div key={key} dir="ltr">
+                    <code>{key}: {value}</code>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Callout>
+        </div>
+      )}
 
       {channels.isLoading ? (
         <div className="flex justify-center py-8">
@@ -218,6 +266,8 @@ export function ChannelsSettingsPage() {
                     name: ch.name,
                     kind: ch.kind,
                     outbound_url: ch.outbound_url || "",
+                    headers: Object.entries(ch.outbound_headers || {}).map(([key, value]) => ({ key, value })),
+                    session_ttl_seconds: ch.session_ttl_seconds ?? 86400,
                     mapping: JSON.stringify(ch.mapping || {}, null, 2),
                     is_active: ch.is_active,
                   })
@@ -242,7 +292,7 @@ export function ChannelsSettingsPage() {
             <Button variant="ghost" onClick={() => setEditing(null)}>
               {t("cancel")}
             </Button>
-            <Button disabled={!editing?.name.trim() || save.isPending} onClick={() => editing && save.mutate(editing)}>
+            <Button data-testid="channel-save" disabled={!editing?.name.trim() || save.isPending} onClick={() => editing && save.mutate(editing)}>
               {t("save")}
             </Button>
           </>
@@ -252,7 +302,7 @@ export function ChannelsSettingsPage() {
           <div className="space-y-3">
             <div>
               <Label>{t("name")}</Label>
-              <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              <Input data-testid="channel-name" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
               <FieldHelp>{page.nameHelp}</FieldHelp>
             </div>
             <div>
@@ -267,6 +317,7 @@ export function ChannelsSettingsPage() {
             <div>
               <Label>{page.outboundLabel}</Label>
               <Input
+                data-testid="channel-outbound-url"
                 dir="ltr"
                 value={editing.outbound_url}
                 onChange={(e) => setEditing({ ...editing, outbound_url: e.target.value })}
@@ -275,8 +326,73 @@ export function ChannelsSettingsPage() {
               <FieldHelp>{page.outboundHelp}</FieldHelp>
             </div>
             <div>
+              <Label>{page.sessionTTL}</Label>
+              <Input
+                data-testid="channel-ttl"
+                dir="ltr"
+                type="number"
+                min={0}
+                max={2592000}
+                value={editing.session_ttl_seconds}
+                onChange={(e) => setEditing({ ...editing, session_ttl_seconds: Number(e.target.value) })}
+              />
+              <FieldHelp>{page.sessionHelp}</FieldHelp>
+            </div>
+            <div>
+              <Label>{page.headersLabel}</Label>
+              <div className="space-y-2">
+                {editing.headers.map((header, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      data-testid={`channel-header-key-${index}`}
+                      dir="ltr"
+                      placeholder={page.headerKey}
+                      value={header.key}
+                      onChange={(e) =>
+                        setEditing({
+                          ...editing,
+                          headers: editing.headers.map((h, i) => (i === index ? { ...h, key: e.target.value } : h)),
+                        })
+                      }
+                    />
+                    <Input
+                      data-testid={`channel-header-value-${index}`}
+                      dir="ltr"
+                      placeholder={page.headerValue}
+                      value={header.value}
+                      onChange={(e) =>
+                        setEditing({
+                          ...editing,
+                          headers: editing.headers.map((h, i) => (i === index ? { ...h, value: e.target.value } : h)),
+                        })
+                      }
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditing({ ...editing, headers: editing.headers.filter((_, i) => i !== index) })}
+                    >
+                      {page.removeHeader}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="mt-2"
+                onClick={() => setEditing({ ...editing, headers: [...editing.headers, { key: "", value: "" }] })}
+              >
+                + {page.addHeader}
+              </Button>
+              <FieldHelp>{page.headersHelp}</FieldHelp>
+            </div>
+            <div>
               <Label>{page.mappingLabel}</Label>
               <Textarea
+                data-testid="channel-mapping"
                 dir="ltr"
                 className="min-h-[140px] font-mono text-xs"
                 value={editing.mapping}
@@ -320,9 +436,9 @@ export function ChannelsSettingsPage() {
                 <thead className="text-slate-400">
                   <tr>
                     <th className="py-1 text-start">{page.time}</th>
+                    <th className="py-1 text-start">{page.kind}</th>
                     <th className="py-1 text-start">{page.status}</th>
-                    <th className="py-1 text-start">{page.ip}</th>
-                    <th className="py-1 text-start">{page.error}</th>
+                    <th className="py-1 text-start">{page.details}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,12 +446,15 @@ export function ChannelsSettingsPage() {
                     <tr key={e.id} className="border-t border-slate-50">
                       <td className="py-1.5 text-slate-400">{formatDateTime(e.received_at)}</td>
                       <td className="py-1.5">
+                        {e.method === "OUTBOUND TEST" ? page.outbound : page.inbound}
+                      </td>
+                      <td className="py-1.5">
                         <span
                           className={cn(
                             "chip",
-                            e.status === "processed"
+                            e.status === "processed" || e.status === "sent"
                               ? "bg-emerald-50 text-emerald-700"
-                              : e.status === "rejected"
+                              : e.status === "rejected" || e.status === "failed"
                                 ? "bg-red-50 text-red-700"
                                 : "bg-slate-100 text-slate-500"
                           )}
@@ -343,8 +462,18 @@ export function ChannelsSettingsPage() {
                           {e.status}
                         </span>
                       </td>
-                      <td className="py-1.5" dir="ltr">{e.remote_ip}</td>
-                      <td className="py-1.5 text-red-500">{(e.error || "").slice(0, 60)}</td>
+                      <td className="py-1.5" dir="ltr">
+                        {e.method === "OUTBOUND TEST" ? (
+                          <details>
+                            <summary className="cursor-pointer text-brand-600">{page.details}</summary>
+                            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[10px] text-slate-500">
+                              {e.body}
+                            </pre>
+                          </details>
+                        ) : (
+                          <span className="text-red-500">{(e.error || copy.misc.dash).slice(0, 80)}</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -182,18 +183,25 @@ func (s *ChannelService) Ingest(ctx context.Context, in IngestInput) (*IngestRes
 	}
 	// 7. continue the open conversation of the identity, or open a new one
 	if conv, cerr := s.repo.Conversations.OpenForVisitor(ctx, visitorID); cerr == nil {
-		msg, duplicate, serr := s.msgs.Send(ctx, SendInput{
-			ConversationID: conv.ID, SenderType: models.SenderVisitor, SenderID: visitorID,
-			SenderName: visitor.DisplayName(), Content: text, SkipAuthorization: true,
-		})
-		if serr != nil {
-			return nil, serr
+		ttl := ch.SessionTTL
+		last := conv.CreatedAt
+		if conv.LastMessageAt != nil {
+			last = *conv.LastMessageAt
 		}
-		// 8. the message is stored and broadcast to the room by Send
-		if !duplicate {
-			s.deliverOutbound(ch, conv.ID, msg.ID, text)
+		if ttl > 0 && time.Since(last) <= time.Duration(ttl)*time.Second {
+			msg, duplicate, serr := s.msgs.Send(ctx, SendInput{
+				ConversationID: conv.ID, SenderType: models.SenderVisitor, SenderID: visitorID,
+				SenderName: visitor.DisplayName(), Content: text, SkipAuthorization: true,
+			})
+			if serr != nil {
+				return nil, serr
+			}
+			// 8. the message is stored and broadcast to the room by Send
+			if !duplicate {
+				s.deliverOutbound(ch, conv.ID, msg.ID, text)
+			}
+			return &IngestResult{ConversationID: conv.ID, MessageID: msg.ID, VisitorID: visitorID, Duplicate: duplicate}, nil
 		}
-		return &IngestResult{ConversationID: conv.ID, MessageID: msg.ID, VisitorID: visitorID, Duplicate: duplicate}, nil
 	}
 	conv, msg, err := s.convs.Start(ctx, nil, visitor, StartInput{
 		Message: text, Channel: ch.Kind, SenderName: visitor.DisplayName(),
@@ -238,10 +246,21 @@ func (s *ChannelService) deliverOutbound(ch *repo.Channel, convID, msgID, text s
 }
 
 func (s *ChannelService) postOutbound(ch *repo.Channel, body []byte) error {
+	_, err := s.postOutboundStatus(ch, body)
+	return err
+}
+
+// postOutboundStatus sends one callback and returns the HTTP status (0 when the
+// request never reached the receiver). User headers are set first so the
+// EveChat system headers cannot be overridden.
+func (s *ChannelService) postOutboundStatus(ch *repo.Channel, body []byte) (int, error) {
 	now := time.Now().Unix()
 	req, err := http.NewRequest(http.MethodPost, *ch.OutboundURL, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return 0, err
+	}
+	for name, value := range ch.OutboundHeaders {
+		req.Header.Set(name, value)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "EveChat-Channel/1.0")
@@ -252,14 +271,58 @@ func (s *ChannelService) postOutbound(ch *repo.Channel, body []byte) error {
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("channel callback status %d", resp.StatusCode)
+		return resp.StatusCode, fmt.Errorf("channel callback status %d", resp.StatusCode)
 	}
-	return nil
+	return resp.StatusCode, nil
+}
+
+// OutboundTestResult is the masked outcome of a channel test delivery.
+type OutboundTestResult struct {
+	OK      bool              `json:"ok"`
+	Status  int               `json:"status"`
+	Headers map[string]string `json:"headers"`
+	Error   string            `json:"error,omitempty"`
+}
+
+// TestOutbound sends a real test callback, records a masked inspector entry
+// and never returns the raw header values.
+func (s *ChannelService) TestOutbound(ctx context.Context, ch *repo.Channel) *OutboundTestResult {
+	res := &OutboundTestResult{Headers: repo.MaskHeaders(ch.OutboundHeaders)}
+	if ch.OutboundURL == nil || strings.TrimSpace(*ch.OutboundURL) == "" {
+		res.Error = "outbound URL is not configured"
+		return res
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"event": "test", "channel_id": ch.ID, "timestamp": time.Now().Unix(),
+	})
+	status, err := s.postOutboundStatus(ch, payload)
+	res.Status = status
+	res.OK = err == nil
+	errText := ""
+	if err != nil {
+		res.Error = err.Error()
+		errText = err.Error()
+	}
+	detail, _ := json.Marshal(map[string]any{"headers": res.Headers, "status": status})
+	host := ""
+	if u, uerr := url.Parse(*ch.OutboundURL); uerr == nil {
+		host = u.Hostname()
+	}
+	entry := &repo.InboxEntry{
+		ID: id.NewPrefixed(id.PrefixInbox), ChannelID: &ch.ID, ProjectID: &ch.ProjectID,
+		Method: "OUTBOUND TEST", RemoteIP: host, Status: "sent", Body: string(detail),
+	}
+	if err != nil {
+		entry.Status = "failed"
+		entry.Error = &errText
+	}
+	_ = s.repo.Channels.CreateInbox(ctx, entry)
+	return res
 }
 
 // PurgeInbox deletes inspector rows older than 48 hours (PII retention).

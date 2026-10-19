@@ -54,8 +54,8 @@ func TestChannelIngestReusesIdentityAndConversation(t *testing.T) {
 	ctx := context.Background()
 	ch := &repo.Channel{
 		ID: "ch_t", ProjectID: "proj_ch", Name: "CRM", Kind: "webhook", IsActive: true,
-		InboundSecret: "secret",
-		Mapping:       json.RawMessage(`{"external_id":"$.user.id","name":"$.user.name","message":"$.text"}`),
+		InboundSecret: "secret", SessionTTL: 86400,
+		Mapping: json.RawMessage(`{"external_id":"$.user.id","name":"$.user.name","message":"$.text"}`),
 	}
 	if err := r.Channels.Create(ctx, ch); err != nil {
 		t.Fatalf("create channel: %v", err)
@@ -104,7 +104,7 @@ func TestChannelIngestCreatesADistinctVisitorPerExternalID(t *testing.T) {
 	ctx := context.Background()
 	ch := &repo.Channel{
 		ID: "ch_t2", ProjectID: "proj_ch", Name: "CRM", Kind: "webhook", IsActive: true,
-		InboundSecret: "secret",
+		InboundSecret: "secret", SessionTTL: 86400,
 	}
 	if err := r.Channels.Create(ctx, ch); err != nil {
 		t.Fatalf("create channel: %v", err)
@@ -122,10 +122,54 @@ func TestChannelIngestCreatesADistinctVisitorPerExternalID(t *testing.T) {
 	}
 }
 
+func TestChannelIngestHonoursSessionTTL(t *testing.T) {
+	r, svc := newChannelFixture(t)
+	ctx := context.Background()
+	ch := &repo.Channel{
+		ID: "ch_ttl", ProjectID: "proj_ch", Name: "CRM", Kind: "webhook",
+		IsActive: true, InboundSecret: "secret", SessionTTL: 86400,
+	}
+	if err := r.Channels.Create(ctx, ch); err != nil {
+		t.Fatalf("create channel: %v", err)
+	}
+	first, err := svc.Ingest(ctx, IngestInput{Channel: ch, Body: []byte(`{"external_id":"u-ttl","message":"one"}`)})
+	if err != nil {
+		t.Fatalf("first ingest: %v", err)
+	}
+	second, err := svc.Ingest(ctx, IngestInput{Channel: ch, Body: []byte(`{"external_id":"u-ttl","message":"two"}`)})
+	if err != nil {
+		t.Fatalf("second ingest: %v", err)
+	}
+	if first.ConversationID != second.ConversationID {
+		t.Fatalf("TTL=86400 should continue the same conversation: %s vs %s", first.ConversationID, second.ConversationID)
+	}
+
+	// created_at has second precision; wait so the new conversation is strictly
+	// newer than the previous one before testing TTL=0 and the reuse window.
+	time.Sleep(1100 * time.Millisecond)
+	ch.SessionTTL = 0
+	third, err := svc.Ingest(ctx, IngestInput{Channel: ch, Body: []byte(`{"external_id":"u-ttl","message":"three"}`)})
+	if err != nil {
+		t.Fatalf("third ingest: %v", err)
+	}
+	if third.ConversationID == second.ConversationID {
+		t.Fatal("TTL=0 must start a new conversation")
+	}
+
+	ch.SessionTTL = 86400
+	fourth, err := svc.Ingest(ctx, IngestInput{Channel: ch, Body: []byte(`{"external_id":"u-ttl","message":"four"}`)})
+	if err != nil {
+		t.Fatalf("fourth ingest: %v", err)
+	}
+	if fourth.ConversationID != third.ConversationID {
+		t.Fatalf("TTL=86400 should continue the newest conversation: %s vs %s", fourth.ConversationID, third.ConversationID)
+	}
+}
+
 func TestChannelIngestRejectsUnmappableBody(t *testing.T) {
 	r, svc := newChannelFixture(t)
 	ctx := context.Background()
-	ch := &repo.Channel{ID: "ch_t3", ProjectID: "proj_ch", Name: "CRM", Kind: "webhook", IsActive: true, InboundSecret: "secret"}
+	ch := &repo.Channel{ID: "ch_t3", ProjectID: "proj_ch", Name: "CRM", Kind: "webhook", IsActive: true, InboundSecret: "secret", SessionTTL: 86400}
 	if err := r.Channels.Create(ctx, ch); err != nil {
 		t.Fatalf("create channel: %v", err)
 	}

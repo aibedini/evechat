@@ -167,6 +167,7 @@ export interface OverviewStats {
   csat_avg: number;
   csat_count: number;
   messages: number;
+  agent_messages: number;
   unique_visitors: number;
   tickets_open: number;
 }
@@ -194,6 +195,8 @@ export interface Channel {
   name: string;
   kind: string;
   outbound_url?: string | null;
+  outbound_headers?: Record<string, string>;
+  session_ttl_seconds?: number;
   mapping: Record<string, unknown>;
   is_active: boolean;
   created_at: string;
