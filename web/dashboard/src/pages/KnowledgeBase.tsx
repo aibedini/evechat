@@ -3,11 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { KBArticle, ListResponse } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Switch, Textarea } from "@/components/ui/input";
-import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
+import { Card, Modal, Spinner } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { FieldHelp } from "@/components/FieldHelp";
+import { PageHeader } from "@/components/PageHeader";
 import { formatDateTime } from "@/lib/utils";
 
+const page = copy.pages.knowledgeBase;
 const blank = { id: "", title: "", content: "", tags: "", is_published: true };
 
 export function KnowledgeBasePage() {
@@ -49,20 +54,33 @@ export function KnowledgeBasePage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">{t("knowledgeBase")}</h1>
-        <input className="input ms-auto w-72" placeholder={t("searchKb")} value={q} onChange={(e) => setQ(e.target.value)} />
-        <Button onClick={() => setEditing({ ...blank })}>+ {t("article")}</Button>
-      </div>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={
+          <>
+            <input
+              className="input w-56"
+              placeholder={t("searchKb")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Button onClick={() => setEditing({ ...blank })}>+ {page.newArticle}</Button>
+          </>
+        }
+      />
 
       {list.isLoading ? (
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
       ) : items.length === 0 ? (
-        <Card>
-          <Empty>{t("empty")}</Empty>
-        </Card>
+        <EmptyState
+          title={page.empty.title}
+          body={page.empty.body}
+          cta={{ label: page.empty.cta, onClick: () => setEditing({ ...blank }) }}
+          icon="📚"
+        />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((a) => (
@@ -76,7 +94,7 @@ export function KnowledgeBasePage() {
               <p className="line-clamp-3 flex-1 text-xs leading-6 text-slate-500">{a.content}</p>
               <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-400">
                 <span>{formatDateTime(a.updated_at)}</span>
-                <span>· {a.view_count} بازدید</span>
+                <span>· {a.view_count} {page.views}</span>
                 <div className="ms-auto flex gap-1">
                   <Button
                     size="sm"
@@ -110,7 +128,7 @@ export function KnowledgeBasePage() {
       <Modal
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.id ? t("edit") : t("article")}
+        title={editing?.id ? t("edit") : page.newArticle}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEditing(null)}>
@@ -127,6 +145,7 @@ export function KnowledgeBasePage() {
             <div>
               <Label>{t("title")}</Label>
               <Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} />
+              <FieldHelp>{page.titleHelp}</FieldHelp>
             </div>
             <div>
               <Label>{t("content")}</Label>
@@ -135,6 +154,7 @@ export function KnowledgeBasePage() {
                 value={editing.content}
                 onChange={(e) => setEditing({ ...editing, content: e.target.value })}
               />
+              <FieldHelp>{page.bodyHelp}</FieldHelp>
             </div>
             <div>
               <Label>{t("tags")}</Label>

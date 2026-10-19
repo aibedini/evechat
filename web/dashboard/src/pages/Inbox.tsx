@@ -13,9 +13,11 @@ import {
 } from "@/hooks/useConversations";
 import type { Conversation, Message } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { ConversationList, type ListFilters } from "@/components/ConversationList";
 import { ChatPanel } from "@/components/ChatPanel";
 import { VisitorPanel } from "@/components/VisitorPanel";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/card";
@@ -95,7 +97,7 @@ export function InboxPage() {
       if (msg.conversation_id !== activeId) {
         if (!muted) beep();
         if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("پیام جدید", { body: msg.content.slice(0, 80) });
+          new Notification(copy.pages.inbox.newMessageNotification, { body: msg.content.slice(0, 80) });
         }
       }
     },
@@ -156,8 +158,12 @@ export function InboxPage() {
   };
 
   return (
-    <div className="inbox flex h-full min-h-0 flex-1" data-active={!!activeId}>
-      <div className="inbox-list flex flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <div className="px-4 pt-4">
+        <PageHeader title={copy.pages.inbox.title} intro={copy.pages.inbox.intro} />
+      </div>
+      <div className="inbox flex min-h-0 flex-1" data-active={!!activeId}>
+        <div className="inbox-list flex flex-col">
         <ConversationList
           items={list.data?.data || []}
           total={list.data?.total || 0}
@@ -199,17 +205,17 @@ export function InboxPage() {
             method: "POST",
             body: { duration: "24h" },
           }).catch(() => undefined);
-          showToast("کاربر مسدود شد");
+          showToast(copy.pages.inbox.bannedToast);
           detail.refetch();
         }}
         onUnban={async () => {
           if (!conversation) return;
           await api(`/api/v1/visitors/${conversation.visitor_id}/ban`, { method: "DELETE" }).catch(() => undefined);
-          showToast("مسدودی برداشته شد");
+          showToast(copy.pages.inbox.unbannedToast);
           detail.refetch();
         }}
         onConvertTicket={() => {
-          setTicketTitle(conversation?.subject || conversation?.page_title || "تیکت از گفتگو");
+          setTicketTitle(conversation?.subject || conversation?.page_title || copy.pages.inbox.defaultTicketTitle);
           setTicketModal(true);
         }}
       />
@@ -238,7 +244,7 @@ export function InboxPage() {
                     body: { title: ticketTitle, priority: ticketPriority },
                   });
                   setTicketModal(false);
-                  showToast("تیکت created".replace("created", "ایجاد شد"));
+                  showToast(copy.pages.inbox.ticketCreatedToast);
                 } catch (err: any) {
                   showToast(err?.message || t("error"));
                 }
@@ -257,13 +263,13 @@ export function InboxPage() {
           <div>
             <Label>{t("priority")}</Label>
             <Select value={ticketPriority} onChange={(e) => setTicketPriority(e.target.value)}>
-              <option value="low">کم</option>
-              <option value="normal">عادی</option>
-              <option value="high">بالا</option>
-              <option value="urgent">فوری</option>
+              <option value="low">{copy.pages.inbox.priorities.low}</option>
+              <option value="normal">{copy.pages.inbox.priorities.normal}</option>
+              <option value="high">{copy.pages.inbox.priorities.high}</option>
+              <option value="urgent">{copy.pages.inbox.priorities.urgent}</option>
             </Select>
           </div>
-          <div className="text-[11px] text-slate-400">کاربر: {conversation?.visitor?.name || "—"}</div>
+          <div className="text-[11px] text-slate-400">{copy.pages.inbox.visitorLabel}: {conversation?.visitor?.name || copy.misc.dash}</div>
         </div>
       </Modal>
 
@@ -275,6 +281,7 @@ export function InboxPage() {
         {muted ? "🔇" : "🔔"}
       </button>
       <span className="hidden">{session?.agent?.name}</span>
+      </div>
     </div>
   );
 }
