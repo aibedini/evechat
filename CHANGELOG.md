@@ -12,6 +12,63 @@ Versioning: [SemVer](https://semver.org/).
 - Realtime translation of agent messages.
 
 
+## [1.2.4] - 2026-10-19
+
+### Added
+- **Proxy trust is explicit.** `server.trusted_proxies` is a CIDR list
+  (loopback by default). Forwarding headers are read only when the socket peer
+  is in that list; `X-Forwarded-For` is walked from the right and trusted hops
+  are skipped (`internal/middleware/clientip_test.go`).
+- **Five more doctor checks** — `net.ports`, `net.bind`, `net.https`,
+  `net.proxy` and `widget.domains` — for 29 checks in total, with unit tests.
+- **Deployment beside EVE:** `install.sh --behind-proxy --domain …
+  --write-nginx` (nginx `-t` before any reload; the file is removed or restored
+  on failure), a preflight that suggests a free port and refuses to install
+  Caddy when 80/443 are busy, and `docs/DEPLOY_WITH_EVE.fa.md`.
+- **UX writing catalogue:** `web/dashboard/src/lib/copy.fa.ts` plus
+  `PageHeader`, `EmptyState` (cta required), `HelpTip`, `FieldHelp` and
+  `Callout`; every page now has an intro, a three-part empty state and field
+  help. The sidebar label «کاربران» is now «مشتریان» (URL unchanged). A
+  four-step quick-start card is driven by real data, and the nine webhook
+  events use the agreed Persian labels. `scripts/check-copy.mjs` blocks Persian
+  text outside the catalogue and enforces intro length/empty-state rules in CI.
+- **Wizard polish:** the setup-token gate for non-loopback callers, the
+  TASK 45 copy in the web and CLI wizards, `scripts/fresh.ps1` / `make fresh`
+  for a throwaway instance, and `wizard.spec.ts` (loopback, wrong/correct
+  token, 375/1440px, 44px targets, post-completion 404) in CI.
+
+### Changed
+- `server.trusted_proxies` replaces the 1.2.3 loopback/private heuristic. The
+  nginx, Caddy and Traefik examples overwrite `X-Forwarded-For`; setting
+  `trust_proxy: true` on a public interface now warns in `doctor`.
+
+### Fixed
+- A client could spoof its own IP (and bypass rate limits, the IP blocklist and
+  the setup gate) by sending `X-Forwarded-For`; forwarding headers are now only
+  honoured from a trusted proxy.
+- The web wizard works on a remote server without a terminal: the setup token
+  can be entered in the wizard, with the Persian error from the plan.
+
+
+## [1.2.3] - 2026-10-19
+
+### Fixed
+- Client IP resolution no longer takes the left-most `X-Forwarded-For` entry;
+  the initial fix required a loopback/private peer and walked the header from
+  the right. Superseded by `server.trusted_proxies` in 1.2.4.
+
+
+## [1.2.2] - 2026-10-19
+
+### Added
+- Webhook event catalogue API, nine events with Persian labels, and a guided
+  empty state on the webhooks page.
+
+### Fixed
+- The release workflow YAML (duplicate `name` keys) was repaired and
+  actionlint runs in CI.
+
+
 ## [1.2.1] - 2026-10-19
 
 ### Changed
