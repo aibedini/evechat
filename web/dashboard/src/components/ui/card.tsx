@@ -1,8 +1,14 @@
 import React, { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("card p-5", className)}>{children}</div>;
+type CardProps = React.HTMLAttributes<HTMLDivElement> & { children: React.ReactNode };
+
+export function Card({ className, children, ...rest }: CardProps) {
+  return (
+    <div className={cn("card p-5", className)} {...rest}>
+      {children}
+    </div>
+  );
 }
 
 export function CardTitle({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {

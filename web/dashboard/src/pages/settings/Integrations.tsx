@@ -16,6 +16,7 @@ interface Status {
   telegram: { enabled: boolean; username: string };
   gmweb: { configured: boolean };
   ai: { enabled: boolean; model: string };
+  smtp?: { configured?: boolean };
 }
 
 export function IntegrationsSettingsPage() {
@@ -118,6 +119,15 @@ export function IntegrationsSettingsPage() {
       detail: s?.ai.enabled ? `${page.aiModelPrefix}${s.ai.model}` : page.aiDisabled,
       actions: null,
     },
+    {
+      key: "smtp",
+      title: page.smtpTitle,
+      icon: "✉️",
+      enabled: !!s?.smtp?.configured,
+      description: page.cards.smtp,
+      detail: s?.smtp?.configured ? page.statusConnected : page.statusNotConfigured,
+      actions: null,
+    },
   ];
 
   return (
@@ -130,7 +140,7 @@ export function IntegrationsSettingsPage() {
 
       <div className="grid gap-3 md:grid-cols-2">
         {integrations.map((i) => (
-          <Card key={i.key} className="flex flex-col">
+          <Card key={i.key} data-testid={`integration-${i.key}`} className="flex flex-col">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xl">{i.icon}</span>
               <span className="text-sm font-semibold">{i.title}</span>

@@ -37,6 +37,9 @@ func (h *Handlers) IntegrationStatus(w http.ResponseWriter, r *http.Request) err
 			"enabled": h.Cfg.AI.Enabled,
 			"model":   h.Cfg.AI.Model,
 		},
+		"smtp": map[string]any{
+			"configured": h.Cfg.SMTP.Enabled && strings.TrimSpace(h.Cfg.SMTP.Host) != "",
+		},
 	}
 	return ok(w, status)
 }
