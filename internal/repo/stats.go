@@ -25,6 +25,7 @@ type OverviewStats struct {
 	CSATAvg                 float64 `json:"csat_avg"`
 	CSATCount               int     `json:"csat_count"`
 	Messages                int     `json:"messages"`
+	AgentMessages           int     `json:"agent_messages"`
 	UniqueVisitors          int     `json:"unique_visitors"`
 	TicketsOpen             int     `json:"tickets_open"`
 }
@@ -73,6 +74,13 @@ func (r *StatsRepo) Overview(ctx context.Context, projectID string, from, to tim
 		WHERE c.project_id = ? AND m.created_at >= ? AND m.created_at <= ?`,
 		projectID, models.FormatTime(from), models.FormatTime(to)).Scan(&s.Messages); err != nil {
 		return nil, fmt.Errorf("counting messages: %w", err)
+	}
+	if err := r.db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM messages m
+		JOIN conversations c ON c.id = m.conversation_id
+		WHERE c.project_id = ? AND m.created_at >= ? AND m.created_at <= ?
+		  AND m.sender_type = 'agent'`,
+		projectID, models.FormatTime(from), models.FormatTime(to)).Scan(&s.AgentMessages); err != nil {
+		return nil, fmt.Errorf("counting agent messages: %w", err)
 	}
 	if err := r.db.R.QueryRowContext(ctx, `SELECT COUNT(*) FROM tickets
 		WHERE project_id = ? AND status IN ('open','in_progress','waiting')`, projectID).Scan(&s.TicketsOpen); err != nil {

@@ -103,8 +103,7 @@ export function DashboardPage() {
 
       <QuickStartCard
         uniqueVisitors={s?.unique_visitors || 0}
-        conversations={s?.total_conversations || 0}
-        messages={s?.messages || 0}
+        agentMessages={s?.agent_messages || 0}
       />
 
       {overview.isLoading ? (

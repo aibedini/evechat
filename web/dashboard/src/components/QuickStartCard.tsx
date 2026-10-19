@@ -11,8 +11,7 @@ const STORAGE_KEY = "evechat:quickstart-dismissed";
 
 interface QuickStartProps {
   uniqueVisitors: number;
-  conversations: number;
-  messages: number;
+  agentMessages: number;
 }
 
 interface IntegrationStatus {
@@ -23,7 +22,7 @@ interface IntegrationStatus {
  * Four onboarding steps whose ticks come from real data, never from a manual
  * checkbox. The card disappears when all four are done or the user dismisses it.
  */
-export function QuickStartCard({ uniqueVisitors, conversations, messages }: QuickStartProps) {
+export function QuickStartCard({ uniqueVisitors, agentMessages }: QuickStartProps) {
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === "1";
@@ -44,7 +43,7 @@ export function QuickStartCard({ uniqueVisitors, conversations, messages }: Quic
   const done = [
     uniqueVisitors > 0,
     activeAgents > 1,
-    conversations > 0 && messages > 0,
+    agentMessages > 0,
     !!integrations.data?.telegram?.enabled,
   ];
   if (dismissed || done.every(Boolean)) return null;
