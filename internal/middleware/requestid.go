@@ -29,16 +29,27 @@ func RequestID(next http.Handler) http.Handler {
 // the server is configured to trust a reverse proxy.
 func ClientIP(r *http.Request, trustProxy bool) string {
 	if trustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			if i := strings.IndexByte(xff, ','); i >= 0 {
-				xff = xff[:i]
+		// Only believe forwarding headers when the socket peer is a trusted
+		// proxy; otherwise a client can spoof its own address.
+		if peer, _, err := net.SplitHostPort(r.RemoteAddr); err == nil && isTrustedProxy(peer) {
+			// X-Forwarded-For is append-only: walk from the RIGHT and skip
+			// trusted proxies, so an attacker-supplied left-hand value is
+			// never selected.
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				parts := strings.Split(xff, ",")
+				for i := len(parts) - 1; i >= 0; i-- {
+					ip := strings.TrimSpace(parts[i])
+					if ip == "" {
+						continue
+					}
+					if !isTrustedProxy(ip) {
+						return ip
+					}
+				}
 			}
-			if ip := strings.TrimSpace(xff); ip != "" {
-				return ip
+			if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" && !isTrustedProxy(rip) {
+				return rip
 			}
-		}
-		if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" {
-			return rip
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -46,6 +57,16 @@ func ClientIP(r *http.Request, trustProxy bool) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// isTrustedProxy reports whether an address belongs to a loopback or private
+// network, i.e. a reverse proxy we are willing to trust for client IPs.
+func isTrustedProxy(raw string) bool {
+	ip := net.ParseIP(strings.TrimSpace(raw))
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate()
 }
 
 // WriteJSON writes a JSON response with the standard content type.

@@ -40,3 +40,22 @@ func TestClientIPFallsBackToRealIPThenSocket(t *testing.T) {
 		t.Fatalf("ClientIP without proxy headers = %q, want 10.0.0.2", got)
 	}
 }
+func TestClientIPRejectsSpoofedLeftmostHop(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "10.0.0.2:443"
+	// An attacker sent "X-Forwarded-For: 1.2.3.4"; nginx appended the real
+	// address, producing "1.2.3.4, 203.0.113.9".
+	r.Header.Set("X-Forwarded-For", "1.2.3.4, 203.0.113.9")
+	if got := ClientIP(r, true); got != "203.0.113.9" {
+		t.Fatalf("spoofed ClientIP = %q, want the nearest untrusted hop 203.0.113.9", got)
+	}
+}
+
+func TestClientIPIgnoresHeadersFromUntrustedPeer(t *testing.T) {
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "198.51.100.7:443"
+	r.Header.Set("X-Forwarded-For", "203.0.113.9")
+	if got := ClientIP(r, true); got != "198.51.100.7" {
+		t.Fatalf("untrusted peer ClientIP = %q, want 198.51.100.7", got)
+	}
+}
