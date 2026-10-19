@@ -26,6 +26,7 @@ plus a dashboard drawer test. See `docs/RESPONSIVE.md`.
 ```bash
 # terminal 1: a throwaway instance
 evechat setup --non-interactive --admin-password 'Passw0rd123!' --admin-email admin@evechat.local
+EVECHAT_SECURITY__POW_DIFFICULTY=0 \
 EVECHAT_RATELIMIT__WIDGET_SESSION_PER_MIN=600 evechat serve
 
 # terminal 2
@@ -34,6 +35,11 @@ npm ci
 npx playwright install chromium
 EVECHAT_BASE=http://127.0.0.1:3000 npx playwright test
 ```
+
+Disable PoW for the suite: the widget solves the challenge synchronously, and the
+adaptive difficulty makes a 20-second boot timeout flaky on slower machines.
+`responsive.spec.ts` closes its per-test browser context so 32 viewports do not
+leave SSE/WebSocket sockets open.
 
 The widget test page the suite drives is `GET /demo/test` (loopback only).
 

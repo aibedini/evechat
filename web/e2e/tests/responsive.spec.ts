@@ -1,4 +1,4 @@
-import { test, expect, type Browser } from "@playwright/test";
+import { test, expect, type Browser, type BrowserContext } from "@playwright/test";
 
 // 8 devices x 2 orientations x 2 themes = 32 combinations, 8 assertions each.
 const DEVICES = [
@@ -15,12 +15,24 @@ const ORIENTATIONS = ["portrait", "landscape"] as const;
 const THEMES = ["light", "dark"] as const;
 const widget = '[data-evechat="widget"]';
 
+// Each test creates its own context (the suite varies viewport and colour
+// scheme), so it must close it. Leaking 32 contexts leaves their SSE/WS
+// connections open and eventually exhausts the browser's per-host sockets.
+const openContexts: BrowserContext[] = [];
+
+test.afterEach(async () => {
+  while (openContexts.length > 0) {
+    await openContexts.pop()!.close();
+  }
+});
+
 async function boot(browser: Browser, width: number, height: number, theme: "light" | "dark") {
   const context = await browser.newContext({
     viewport: { width, height },
     colorScheme: theme,
     deviceScaleFactor: 1,
   });
+  openContexts.push(context);
   const page = await context.newPage();
   await page.goto("/demo/test");
   await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 20_000 });
