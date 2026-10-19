@@ -27,6 +27,13 @@ OS=""
 ARCH=""
 TMPDIR_INSTALL=""
 KEEP_ENV="0"
+BEHIND_PROXY="0"
+DOMAIN=""
+WRITE_NGINX="0"
+PORT_EXPLICIT="0"
+CHANGED_USER=""
+CHANGED_SYSTEMD=""
+CHANGED_NGINX=""
 
 # ---------- output helpers ----------
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != "dumb" ]; then
@@ -49,6 +56,9 @@ usage() {
   --dir <path>      مسیر نصب (پیش‌فرض /opt/evechat)
   --port <n>        پورت سرویس (پیش‌فرض 3000)
   --public-url <u>  آدرس عمومی (پیش‌فرض http://IP:PORT)
+  --behind-proxy    پشت nginx/Caddy: شنود روی 127.0.0.1 و trust_proxy روشن
+  --domain <name>   دامنه‌ی عمومی (مثلاً chat.example.com)
+  --write-nginx     نوشتن /etc/nginx/conf.d/evechat.conf و reload بعد از nginx -t
   --base-url <url>  آینه دانلود (برای شبکه‌های محدود)
   --user <name>     کاربر سرویس (پیش‌فرض evechat)
   --no-systemd      بدون نصب سرویس systemd
@@ -66,10 +76,14 @@ while [ $# -gt 0 ]; do
     --version=*)  VERSION="${1#*=}"; shift ;;
     --dir)        DIR="$2"; shift 2 ;;
     --dir=*)      DIR="${1#*=}"; shift ;;
-    --port)       PORT="$2"; shift 2 ;;
-    --port=*)     PORT="${1#*=}"; shift ;;
+    --port)       PORT="$2"; PORT_EXPLICIT="1"; shift 2 ;;
+    --port=*)     PORT="${1#*=}"; PORT_EXPLICIT="1"; shift ;;
     --public-url) PUBLIC_URL="$2"; shift 2 ;;
     --public-url=*) PUBLIC_URL="${1#*=}"; shift ;;
+    --behind-proxy) BEHIND_PROXY="1"; shift ;;
+    --domain)     DOMAIN="$2"; shift 2 ;;
+    --domain=*)   DOMAIN="${1#*=}"; shift ;;
+    --write-nginx) WRITE_NGINX="1"; shift ;;
     --base-url)   BASE_URL="$2"; shift 2 ;;
     --base-url=*) BASE_URL="${1#*=}"; shift ;;
     --user)       SERVICE_USER="$2"; shift 2 ;;
@@ -123,6 +137,116 @@ detect_platform() {
     *) die "معماری پشتیبانی نمی‌شود: $(uname -m)" ;;
   esac
   ok "سیستم شناسایی شد: ${OS}/${ARCH}"
+}
+
+# ---------- preflight ----------
+# True when something is listening on the loopback port. Uses ss/lsof/nc and
+# never changes a service.
+port_taken() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    if ss -ltnH 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}$"; then
+      return 0
+    fi
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -nP -iTCP:"${port}" -sTCP:LISTEN 2>/dev/null | tail -n +2 | grep -q .; then
+      return 0
+    fi
+  fi
+  if command -v nc >/dev/null 2>&1; then
+    nc -z 127.0.0.1 "${port}" >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+# Best-effort description of the process holding a port; purely informational.
+port_owner() {
+  local port="$1" line=""
+  if command -v ss >/dev/null 2>&1; then
+    line="$(ss -ltnp 2>/dev/null | awk -v p=":${port}" '$4 ~ p"$" {print; exit}')"
+  fi
+  if [ -z "$line" ] && command -v lsof >/dev/null 2>&1; then
+    line="$(lsof -nP -iTCP:"${port}" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1" (pid "$2")"; exit}')"
+  fi
+  printf '%s' "${line:-نامشخص}"
+}
+
+first_free_port() {
+  local p=3100
+  while [ "$p" -le 3199 ]; do
+    if ! port_taken "$p"; then
+      printf '%s' "$p"
+      return 0
+    fi
+    p=$((p + 1))
+  done
+  return 1
+}
+
+preflight_ports() {
+  [ -n "${PORT:-}" ] || PORT="3000"
+  if port_taken "$PORT"; then
+    if fetch_stdout "http://127.0.0.1:${PORT}/api/v1/health" >/dev/null 2>&1; then
+      ok "پورت ${PORT} در اختیار EveChat است؛ همان پورت حفظ می‌شود"
+      return
+    fi
+    local owner free
+    owner="$(port_owner "$PORT")"
+    warn "پورت ${PORT} اشغال است: ${owner}"
+    free="$(first_free_port || true)"
+    if [ "$PORT_EXPLICIT" = "1" ]; then
+      [ -n "$free" ] && err "پورت آزاد پیشنهادی: ${free}"
+      die "پورت دیگری با --port انتخاب کنید."
+    fi
+    if [ -z "$free" ]; then
+      die "پورت آزادی در بازه 3100 تا 3199 پیدا نشد؛ با --port یکی انتخاب کنید."
+    fi
+    warn "به‌جای آن از پورت آزاد ${free} استفاده می‌شود (بدون دست زدن به سرویس فعلی)."
+    PORT="$free"
+  else
+    ok "پورت ${PORT} آزاد است"
+  fi
+}
+
+preflight_web() {
+  local p owner found="0"
+  for p in 80 443; do
+    if port_taken "$p"; then
+      owner="$(port_owner "$p")"
+      warn "پورت ${p} در حال استفاده است: ${owner}"
+      found="1"
+    fi
+  done
+  if [ "$found" = "1" ]; then
+    info "یک وب‌سرور از قبل روی 80/443 است؛ Caddy نصب یا اجرا نمی‌شود."
+  fi
+  local bin
+  for bin in nginx apache2 httpd caddy; do
+    if command -v "$bin" >/dev/null 2>&1; then
+      info "وب‌سرور موجود: ${bin}"
+    fi
+  done
+}
+
+preflight_system() {
+  info "بررسی منابع (فقط گزارش؛ چیزی تغییر نمی‌کند)"
+  if command -v free >/dev/null 2>&1; then
+    free -h | awk 'NR<=2 {print "  " $0}'
+  elif [ "$OS" = "darwin" ]; then
+    printf '  memory: %s bytes\n' "$(sysctl -n hw.memsize 2>/dev/null || echo unknown)"
+  fi
+  if [ -d "$DIR" ]; then
+    df -h "$DIR" 2>/dev/null | awk 'NR==2 {print "  disk: " $4 " free on " $6}'
+  else
+    df -h / 2>/dev/null | awk 'NR==2 {print "  disk: " $4 " free on " $6}'
+  fi
+  local bin
+  for bin in redis-server redis-cli google-chrome chromium chromium-browser docker; do
+    if command -v "$bin" >/dev/null 2>&1; then
+      info "  found ${bin} (left untouched)"
+    fi
+  done
 }
 
 fetch() {
@@ -209,6 +333,7 @@ install_service_user() {
     || adduser -S -H -s /sbin/nologin "$SERVICE_USER" \
     || warn "ساخت کاربر $SERVICE_USER ناموفق بود؛ از root استفاده می‌شود."
   ok "کاربر سرویس ساخته شد: $SERVICE_USER"
+  CHANGED_USER="$SERVICE_USER"
 }
 
 install_files() {
@@ -255,22 +380,50 @@ write_config() {
   local cfg="$DIR/evechat.yaml"
   if [ -f "$cfg" ]; then
     ok "فایل تنظیمات موجود است و بازنویسی نمی‌شود"
+    if [ "$BEHIND_PROXY" = "1" ]; then
+      warn "برای حالت --behind-proxy، در $cfg مقدار server.host را 127.0.0.1 و trust_proxy را true کنید."
+    fi
     return
   fi
-  if [ -z "$PORT" ]; then PORT="3000"; fi
-  if [ -z "$PUBLIC_URL" ]; then
-    local ip
-    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-    [ -n "${ip:-}" ] || ip="127.0.0.1"
-    PUBLIC_URL="http://${ip}:${PORT}"
+  [ -n "${PORT:-}" ] || PORT="3000"
+  local host="0.0.0.0" trust="false"
+  if [ "$BEHIND_PROXY" = "1" ]; then
+    host="127.0.0.1"
+    trust="true"
   fi
-  cat > "$cfg" <<EOF
+  if [ -z "$PUBLIC_URL" ]; then
+    if [ -n "$DOMAIN" ]; then
+      PUBLIC_URL="https://${DOMAIN}"
+    else
+      local ip
+      ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+      [ -n "${ip:-}" ] || ip="127.0.0.1"
+      PUBLIC_URL="http://${ip}:${PORT}"
+    fi
+  fi
+  if [ "$BEHIND_PROXY" = "1" ]; then
+    case "$PUBLIC_URL" in
+      http://127.*|http://localhost*|http://\[::1\]*)
+        warn "آدرس عمومی لوکال است؛ برای نصب واقعی --domain یا --public-url بدهید." ;;
+    esac
+  fi
+  {
+    cat <<EOF
 # EveChat — تولیدشده در $(date -u +%Y-%m-%dT%H:%M:%SZ)
 server:
-  host: "0.0.0.0"
+  host: "${host}"
   port: ${PORT}
   public_url: "${PUBLIC_URL}"
-  trust_proxy: false
+  trust_proxy: ${trust}
+EOF
+    if [ "$BEHIND_PROXY" = "1" ]; then
+      cat <<EOF
+  trusted_proxies:
+    - "127.0.0.1/32"
+    - "::1/128"
+EOF
+    fi
+    cat <<EOF
   shutdown_timeout: "20s"
 
 database:
@@ -308,6 +461,7 @@ log:
   max_size_mb: 50
   max_backups: 5
 EOF
+  } > "$cfg"
   if id -u "$SERVICE_USER" >/dev/null 2>&1; then chown "$SERVICE_USER:$SERVICE_USER" "$cfg"; fi
   chmod 0640 "$cfg"
   ok "تنظیمات نوشته شد: $cfg"
@@ -362,7 +516,174 @@ EOF
   systemctl daemon-reload
   systemctl enable evechat >/dev/null 2>&1 || true
   systemctl restart evechat
+  CHANGED_SYSTEMD="/etc/systemd/system/evechat.service (evechat.service)"
   ok "سرویس systemd نصب و اجرا شد"
+}
+
+# Writes an nginx vhost for EveChat. The file is validated with `nginx -t`
+# before any reload; on failure it is removed (or the backup restored) and
+# nginx is left untouched.
+write_nginx_conf() {
+  if [ "$WRITE_NGINX" != "1" ]; then return 0; fi
+  if [ "$OS" != "linux" ]; then
+    warn "--write-nginx فقط روی لینوکس پشتیبانی می‌شود."
+    return 0
+  fi
+  if ! command -v nginx >/dev/null 2>&1; then
+    warn "nginx نصب نیست؛ بلوک آماده در deploy/nginx/evechat.conf است."
+    return 0
+  fi
+  need_root
+  local domain="$DOMAIN"
+  if [ -z "$domain" ]; then
+    domain="$(printf '%s' "${PUBLIC_URL:-}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#[:/].*$##')"
+  fi
+  if [ -z "$domain" ]; then
+    warn "دامنه مشخص نیست؛ --domain یا --public-url بدهید. nginx نوشته نشد."
+    return 0
+  fi
+  local target="${EVECHAT_NGINX_CONF:-/etc/nginx/conf.d/evechat.conf}"
+  local conf_dir
+  conf_dir="$(dirname "$target")"
+  if [ ! -d "$conf_dir" ]; then
+    warn "پوشه‌ی ${conf_dir} وجود ندارد؛ بلوک آماده در deploy/nginx/evechat.conf است."
+    return 0
+  fi
+  local cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
+  local key="/etc/letsencrypt/live/${domain}/privkey.pem"
+  local tmpfile backup=""
+  tmpfile="$(mktemp)"
+  if [ -f "$target" ]; then
+    backup="${target}.evechat.$(date +%s).bak"
+    cp -p "$target" "$backup"
+  fi
+
+  cat > "$tmpfile" <<'NGINX'
+# EveChat — generated by install.sh. Do not edit by hand; re-run with
+# --write-nginx after changing the domain or port.
+map $http_upgrade $evechat_connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+NGINX
+
+  if [ -f "$cert" ] && [ -f "$key" ]; then
+    cat >> "$tmpfile" <<'NGINX'
+server {
+    listen 80;
+    server_name __DOMAIN__;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name __DOMAIN__;
+    ssl_certificate     __CERT__;
+    ssl_certificate_key __KEY__;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 10m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+NGINX
+  else
+    warn "گواهی ${domain} پیدا نشد؛ بلوک HTTP-only نوشته می‌شود. بعد از certbot دوباره --write-nginx را اجرا کنید."
+    cat >> "$tmpfile" <<'NGINX'
+server {
+    listen 80;
+    server_name __DOMAIN__;
+    client_max_body_size 10m;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+NGINX
+  fi
+
+  cat >> "$tmpfile" <<'NGINX'
+    # SSE must never be buffered.
+    location /api/widget/v1/events {
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+
+    # Dashboard websocket.
+    location /ws/ {
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $evechat_connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # Long polling.
+    location /api/widget/v1/poll {
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_buffering off;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:__PORT__;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+NGINX
+
+  sed -e "s#__DOMAIN__#${domain}#g" \
+      -e "s#__PORT__#${PORT}#g" \
+      -e "s#__CERT__#${cert}#g" \
+      -e "s#__KEY__#${key}#g" "$tmpfile" > "$target"
+
+  if ! nginx -t; then
+    rm -f "$target"
+    if [ -n "$backup" ] && [ -f "$backup" ]; then
+      mv "$backup" "$target"
+      warn "فایل قبلی nginx بازگردانده شد."
+    fi
+    rm -f "$tmpfile"
+    die "nginx -t ناموفق بود؛ فایل تولیدشده حذف شد و nginx reload نشد."
+  fi
+  rm -f "$tmpfile"
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
+    systemctl reload nginx || warn "nginx -t موفق بود ولی reload ناموفق ماند؛ وضعیت سرویس را بررسی کنید."
+  else
+    nginx -s reload || warn "nginx -t موفق بود ولی nginx در حال اجرا نبود؛ با start/reload اعمال کنید."
+  fi
+  CHANGED_NGINX="$target"
+  ok "بلوک nginx نوشته و بعد از nginx -t موفق reload شد: $target"
+  if [ -n "$backup" ]; then
+    info "نسخه‌ی قبلی: $backup"
+  fi
+}
+
+report_changes() {
+  echo
+  echo "─── آنچه روی این سرور تغییر کرد ───"
+  echo "  کاربر سرویس: ${CHANGED_USER:-بدون تغییر (از قبل بود)}"
+  echo "  پوشه نصب:    ${DIR}"
+  echo "  سرویس:       ${CHANGED_SYSTEMD:-نصب نشد}"
+  echo "  nginx:       ${CHANGED_NGINX:-نوشته نشد}"
+  echo "  شنود/عمومی:  ${PORT} / ${PUBLIC_URL:-—}"
+  echo "  سرویس‌های همسایه (Redis/Chrome/Docker) دست نخوردند."
+  echo "────────────────────────────────────"
 }
 
 wait_health() {
@@ -459,6 +780,13 @@ main() {
     do_uninstall
     exit 0
   fi
+  # Writing an nginx vhost for this host implies the loopback/trust_proxy mode.
+  if [ "$WRITE_NGINX" = "1" ]; then
+    BEHIND_PROXY="1"
+  fi
+  preflight_ports
+  preflight_web
+  preflight_system
   resolve_version
   download_release
   install_service_user
@@ -478,7 +806,15 @@ main() {
     systemctl restart evechat
     wait_health
   fi
-  [ -n "${TMPDIR_INSTALL:-}" ] && rm -rf "$TMPDIR_INSTALL" || true
+  write_nginx_conf
+  report_changes
 }
+
+cleanup_install_tmp() {
+  if [ -n "${TMPDIR_INSTALL:-}" ]; then
+    rm -rf "$TMPDIR_INSTALL"
+  fi
+}
+trap cleanup_install_tmp EXIT
 
 main "$@"

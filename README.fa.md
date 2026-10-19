@@ -152,6 +152,8 @@ sudo -u evechat /opt/evechat/evechat setup
 
 جدول کامل: [docs/CONFIG.fa.md](docs/CONFIG.fa.md)
 
+اجرا کنار سرور EVE (پورت، nginx، CSP، عیب‌یابی): [docs/DEPLOY_WITH_EVE.fa.md](docs/DEPLOY_WITH_EVE.fa.md)
+
 ---
 
 ## یکپارچه‌سازی‌ها

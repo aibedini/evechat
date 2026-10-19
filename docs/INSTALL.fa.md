@@ -57,10 +57,18 @@ sudo ./install-offline.sh --port 3000
 
 ## TLS و پروکسی
 
+- **پشت پروکسی:** `sudo ./install.sh --port 3100 --behind-proxy --domain chat.example.com`
+  (شنود روی `127.0.0.1`، `trust_proxy: true` و `trusted_proxies` لوکال).
+- **نوشتن بلوک nginx:** `--write-nginx` را به همان دستور اضافه کنید. فایل فقط بعد
+  از `nginx -t` موفق reload می‌شود؛ در صورت خطا حذف/بازگردانی می‌شود.
 - **Caddy:** `deploy/caddy/Caddyfile` (خودکار Let's Encrypt؛ `flush_interval -1` برای SSE الزامی است).
+  اگر ۸۰/۴۴۳ در اختیار وب‌سرور دیگری است، Caddy نصب یا اجرا نمی‌شود.
 - **nginx:** `deploy/nginx/evechat.conf`.
 - **Traefik:** `deploy/traefik/dynamic.yml`.
-- در همه حالت‌ها `server.trust_proxy: true` را تنظیم کنید.
+- در همه حالت‌ها `server.trust_proxy: true` را تنظیم کنید و آدرس پروکسی را در
+  `server.trusted_proxies` بگذارید (پیش‌فرض `127.0.0.1/32` و `::1/128`).
+
+راهنمای گام‌به‌گام کنار EVE: [DEPLOY_WITH_EVE.fa.md](DEPLOY_WITH_EVE.fa.md).
 
 ## سرویس
 

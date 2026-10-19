@@ -333,6 +333,29 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			}
 			return Result{Message: "پورت اشغال است", Fix: "پورت دیگری با server.port انتخاب کنید یا سرویس مزاحم را ببندید: ss -ltnp | grep " + fmt.Sprint(cfg.Server.Port), Detail: err.Error()}
 		}},
+		{ID: "net.ports", Name: "پورت‌های همسایه", Level: Info, Run: func(ctx context.Context) Result {
+			ports := []int{3000, 8080, 5000, 3030}
+			var busy, free []string
+			for _, p := range ports {
+				if p == cfg.Server.Port && isOurs(ctx, cfg) {
+					busy = append(busy, fmt.Sprintf("%d (EveChat)", p))
+					continue
+				}
+				if portFree(p) {
+					free = append(free, fmt.Sprint(p))
+					continue
+				}
+				busy = append(busy, fmt.Sprintf("%d (%s)", p, listenerLabel(ctx, p)))
+			}
+			if len(busy) == 0 {
+				return Result{OK: true, Message: "همه آزادند: " + strings.Join(free, ", ")}
+			}
+			msg := "در حال استفاده: " + strings.Join(busy, ", ")
+			if len(free) > 0 {
+				msg += "؛ آزاد: " + strings.Join(free, ", ")
+			}
+			return Result{OK: true, Message: msg, Detail: "اطلاعاتی؛ هیچ سرویسی تغییر نکرد"}
+		}},
 		{ID: "net.outbound", Name: "دسترسی خروجی", Level: Warn, Run: func(ctx context.Context) Result {
 			if !cfg.Telegram.Enabled || cfg.Telegram.BotToken == "" {
 				return Result{OK: true, Message: "بررسی نشد (تلگرام غیرفعال)"}
@@ -378,6 +401,72 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 				}
 			}
 			return Result{OK: true, Message: cfg.BaseURL()}
+		}},
+		{ID: "net.bind", Name: "آدرس شنود", Level: Warn, Run: func(ctx context.Context) Result {
+			host := cfg.Server.Host
+			if (host == "" || host == "0.0.0.0" || host == "::" || host == "[::]") && cfg.Server.TrustProxy {
+				return Result{
+					Message: "سرور روی همه‌ی رابط‌ها باز است و trust_proxy روشن است",
+					Fix:     `server.host را "127.0.0.1" بگذارید و پروکسی معکوس را روی همین ماشین اجرا کنید`,
+					Detail:  "یک کلاینت مستقیم می‌تواند سرآیند X-Forwarded-For جعل کند",
+				}
+			}
+			if host == "" {
+				host = "0.0.0.0"
+			}
+			return Result{OK: true, Message: host}
+		}},
+		{ID: "net.https", Name: "HTTPS عمومی", Level: Warn, Run: func(ctx context.Context) Result {
+			u, err := url.Parse(cfg.BaseURL())
+			if err != nil || u.Host == "" {
+				return Result{OK: true, Message: "بررسی نشد (public_url نامعتبر)"}
+			}
+			host := u.Hostname()
+			local := host == "localhost" || host == "127.0.0.1" || host == "::1"
+			if u.Scheme != "https" && !local {
+				return Result{
+					Message: "آدرس عمومی https نیست",
+					Fix:     "صفحه‌های HTTPS ویجت را روی http بلاک می‌کنند؛ server.public_url را با https و گواهی تنظیم کنید",
+					Detail:  cfg.BaseURL(),
+				}
+			}
+			return Result{OK: true, Message: u.Scheme + "://" + u.Host}
+		}},
+		{ID: "net.proxy", Name: "پروکسی معکوس", Level: Warn, Run: func(ctx context.Context) Result {
+			u, err := url.Parse(cfg.BaseURL())
+			if err != nil || u.Host == "" {
+				return Result{OK: true, Message: "بررسی نشد (public_url نامعتبر)"}
+			}
+			if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1" {
+				return Result{OK: true, Message: "بررسی نشد (آدرس عمومی localhost)"}
+			}
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, cfg.BaseURL()+"/api/v1/health", nil)
+			resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+			if err != nil {
+				return Result{Message: "از راه پروکسی پاسخ نداد", Fix: "nginx/Caddy و DNS را بررسی کنید", Detail: err.Error()}
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				return Result{Message: fmt.Sprintf("پروکسی پاسخ %d داد", resp.StatusCode), Fix: "مسیر /api/v1/health را در پروکسی بررسی کنید"}
+			}
+			var health struct {
+				InstanceID string `json:"instance_id"`
+			}
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			_ = json.Unmarshal(body, &health)
+			local, ok, _ := localInstanceID(ctx, cfg)
+			if ok && health.InstanceID != "" && health.InstanceID != local {
+				return Result{
+					Message: "پروکسی به نصب دیگری می‌رسد",
+					Fix:     "server.public_url و upstream پروکسی را بررسی کنید",
+					Detail:  fmt.Sprintf("public=%s local=%s", health.InstanceID, local),
+				}
+			}
+			msg := "پروکسی به همین نصب می‌رسد"
+			if server := resp.Header.Get("Server"); server != "" {
+				msg += " (" + server + ")"
+			}
+			return Result{OK: true, Message: msg}
 		}},
 		{ID: "time.skew", Name: "انحراف ساعت", Level: Warn, Run: func(ctx context.Context) Result {
 			client := &http.Client{Timeout: 4 * time.Second}
@@ -524,6 +613,32 @@ func checks(cfg *config.Config, configPath string, log zerolog.Logger) []Check {
 			}
 			return Result{OK: true, Message: fmt.Sprintf("%d bytes gzip", buf.Len())}
 		}},
+		{ID: "widget.domains", Name: "دامنه‌های ویجت", Level: Warn, Run: func(ctx context.Context) Result {
+			d, err := db.Open(cfg)
+			if err != nil {
+				return Result{OK: true, Message: "بررسی نشد (پایگاه داده باز نشد)", Detail: err.Error()}
+			}
+			defer d.Close()
+			projects, err := repo.New(d).Projects.List(ctx)
+			if err != nil {
+				return Result{
+					Message: "حالت آزمایشی: ویجت روی هر سایتی کار می‌کند",
+					Fix:     "در تنظیمات ← ویجت دامنه‌ی سایت‌تان را اضافه کنید تا فقط همین سایت‌ها مجاز باشند",
+					Detail:  err.Error(),
+				}
+			}
+			total := 0
+			for _, p := range projects {
+				total += len(p.Domains)
+			}
+			if total == 0 {
+				return Result{
+					Message: "حالت آزمایشی: ویجت روی هر سایتی کار می‌کند",
+					Fix:     "در تنظیمات ← ویجت دامنه‌ی سایت‌تان را اضافه کنید تا فقط همین سایت‌ها مجاز باشند",
+				}
+			}
+			return Result{OK: true, Message: fmt.Sprintf("%d دامنه مجاز", total)}
+		}},
 		{ID: "assets.dashboard", Name: "باندل پنل", Level: Warn, Run: func(ctx context.Context) Result {
 			if !embedfs.HasDashboardIndex() {
 				return Result{Message: "پنل در باینری نیست", Fix: "cd web/dashboard && npm ci && npm run build"}
@@ -582,6 +697,31 @@ func isOurs(ctx context.Context, cfg *config.Config) bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
+}
+
+// portFree reports whether a loopback listener can bind the port.
+func portFree(port int) bool {
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return false
+	}
+	_ = ln.Close()
+	return true
+}
+
+// listenerLabel makes a best-effort identification of a busy port without
+// changing anything: the HTTP Server header, "HTTP", or just "TCP".
+func listenerLabel(ctx context.Context, port int) string {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/", port), nil)
+	resp, err := (&http.Client{Timeout: 1500 * time.Millisecond}).Do(req)
+	if err != nil {
+		return "TCP"
+	}
+	defer resp.Body.Close()
+	if server := resp.Header.Get("Server"); server != "" {
+		return server
+	}
+	return "HTTP"
 }
 
 func cfgPathHint(cfg *config.Config) string {

@@ -33,7 +33,7 @@ The installer verifies checksums, creates a system user, generates secrets, inst
 ## After install
 
 ```bash
-evechat doctor --verbose          # 24 checks with Persian fix hints
+evechat doctor --verbose          # 29 checks with Persian fix hints
 evechat backup /backup/now --with-uploads
 evechat update --check
 curl -s localhost:3000/metrics | head
@@ -53,6 +53,7 @@ wins. Examples: [deploy/nginx](deploy/nginx/evechat.conf),
 
 - [docs/INSTALL.fa.md](docs/INSTALL.fa.md) — نصب، سرویس، TLS، آفلاین
 - [docs/CONFIG.fa.md](docs/CONFIG.fa.md) — همه کلیدهای پیکربندی
+- [docs/DEPLOY_WITH_EVE.fa.md](docs/DEPLOY_WITH_EVE.fa.md) — اجرا کنار EVE، nginx و عیب‌یابی
 - [docs/API.md](docs/API.md) — REST/WS endpoints
 - [docs/WIDGET.md](docs/WIDGET.md) — JS API and events
 - [docs/ROUTING.fa.md](docs/ROUTING.fa.md) — rule cookbook

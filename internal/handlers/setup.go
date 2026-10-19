@@ -71,7 +71,7 @@ func (h *Handlers) SetupCheck(w http.ResponseWriter, r *http.Request) error {
 		Cfg:        h.Cfg,
 		Log:        h.Log,
 		Version:    h.Version,
-		Only:       []string{"config.file", "config.jwt", "config.keys", "fs.data", "fs.uploads", "db.open", "db.migrations", "net.port", "time.skew", "assets.dashboard", "assets.font", "widget.size"},
+		Only:       []string{"config.file", "config.jwt", "config.keys", "fs.data", "fs.uploads", "db.open", "db.migrations", "net.port", "time.skew", "net.outbound", "assets.dashboard", "assets.font", "widget.size"},
 	})
 	writeJSON(w, http.StatusOK, report)
 	return nil
@@ -83,7 +83,7 @@ func (h *Handlers) setupChecks(ctx context.Context) []map[string]any {
 		Cfg:        h.Cfg,
 		Log:        h.Log,
 		Version:    h.Version,
-		Only:       []string{"fs.data", "db.open", "net.port", "config.keys", "time.skew", "assets.font"},
+		Only:       []string{"fs.data", "db.open", "net.port", "config.keys", "time.skew", "net.outbound", "assets.font"},
 	})
 	out := make([]map[string]any, 0, len(report.Checks))
 	for _, c := range report.Checks {
