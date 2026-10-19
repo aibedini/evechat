@@ -12,6 +12,37 @@ Versioning: [SemVer](https://semver.org/).
 - Realtime translation of agent messages.
 
 
+## [1.2.5] - 2026-10-19
+
+### Added
+- **Channel outbound headers and continuation window.** Each channel accepts up
+  to 20 custom outbound headers (`X-API-Key`, `X-Tenant`, …) and a
+  `session_ttl_seconds` value (default 24h, `0` = always a new conversation).
+  Sensitive values are returned as `••••••`, never logged or audited, and the
+  edit form sends the mask back so the stored value survives a save.
+- **Channel test delivery inspector.** «ارسال آزمایشی» sends a real callback
+  with the configured headers and records an `OUTBOUND TEST` row (masked
+  headers + status) that the inspector expands.
+- **SMTP card.** `/api/v1/integrations/status` now reports
+  `smtp.configured`, and the integrations page shows the email card.
+- **Exact quick-start count.** `overview.agent_messages` counts agent-authored
+  messages, so step 3 no longer approximates with “conversations and messages”.
+
+### Changed
+- **PoW is cooperative and lazy.** The widget solves the challenge only on the
+  first panel open (or explicit send), yields every 8ms, and gives up softly
+  after 15s with «در حال آمادهسازی…» and a tap-to-retry banner. The host page
+  stays interactive; the bundle remains under the 16,384-byte gzip cap.
+- E2E keeps PoW enabled at difficulty 14 and asserts no main-thread task over
+  50ms; loopback outbound is allowlisted for the channel test.
+
+### Fixed
+- **BUG-4 detail fetch storm.** `conversation.updated` now patches the open
+  conversation cache instead of invalidating it; a live message no longer
+  refetches the panel (`behavior.spec.ts` test 9).
+- **BUG-1 regression coverage.** `behavior.spec.ts` test 8 asserts the same
+  conversation id after a reload.
+
 ## [1.2.4] - 2026-10-19
 
 > **هشدار امنیتی:** رفع جعل IP؛ نسخه‌های 1.2.2 و 1.2.3 آسیب‌پذیرند و ارتقا توصیه می‌شود.
