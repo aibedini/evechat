@@ -77,15 +77,15 @@ jobs:
         run: node scripts/check-copy.mjs
       - name: external URL audit
         run: node scripts/url-audit.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: widget
           path: web/widget/dist/widget.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dashboard
           path: embed/dashboard
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: setup
           path: embed/setup
