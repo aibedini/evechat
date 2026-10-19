@@ -43,6 +43,28 @@ function appendMessage(qc: QueryClient, msg: Message): void {
     return { ...old, data: next };
   });
 }
+
+/**
+ * Applies a conversation.updated frame to the open panel's cache. Refetching
+ * the detail on every unread/status frame caused the BUG-4 fetch storm; the
+ * frame already carries the fields the panel renders.
+ */
+function patchConversation(qc: QueryClient, data: any): void {
+  if (!data?.conversation_id) return;
+  qc.setQueryData<{ conversation: Conversation; messages: Message[] } | undefined>(
+    ["conversation", data.conversation_id],
+    (old) => {
+      if (!old) return old;
+      const conversation = { ...old.conversation };
+      if (typeof data.status === "string") conversation.status = data.status;
+      if (data.assigned_agent_id !== undefined) conversation.assigned_agent_id = data.assigned_agent_id;
+      if (data.last_message_at !== undefined) conversation.last_message_at = data.last_message_at;
+      if (typeof data.unread_agent === "number") conversation.unread_agent = data.unread_agent;
+      if (typeof data.unread_visitor === "number") conversation.unread_visitor = data.unread_visitor;
+      return { ...old, conversation };
+    }
+  );
+}
 export interface RealtimeHandlers {
   onMessage?(msg: Message, conversationId: string): void;
   onTyping?(conversationId: string, agentName: string): void;
@@ -75,7 +97,7 @@ export function useWebSocket(handlers: RealtimeHandlers = {}) {
       agentSocket.on("conversation.updated", (data: any) => {
         qc.invalidateQueries({ queryKey: ["conversations"] });
         if (data?.conversation_id) {
-          qc.invalidateQueries({ queryKey: ["conversation", data.conversation_id] });
+          patchConversation(qc, data);
           handlersRef.current.onConversation?.(data.conversation_id, data.status);
         }
       }),
@@ -131,7 +153,7 @@ export function useAgentEvents(handlers: RealtimeHandlers = {}) {
       agentSocket.on("conversation.updated", (data: any) => {
         qc.invalidateQueries({ queryKey: ["conversations"] });
         if (data?.conversation_id) {
-          qc.invalidateQueries({ queryKey: ["conversation", data.conversation_id] });
+          patchConversation(qc, data);
           handlersRef.current.onConversation?.(data.conversation_id, data.status);
         }
       }),

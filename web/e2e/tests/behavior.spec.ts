@@ -1,12 +1,13 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 
-// Seven scenarios from the bugfix sprint, one per shipped defect:
-//   1-2  BUG-1  resume: history and read state survive a reload
-//   3    BUG-1  a resolved thread never swallows the next visitor message
-//   4    BUG-3  a message on a pending (unassigned) conversation reaches the agent
-//   5    BUG-3  typing: widget -> server -> panel, with a server-side TTL
-//   6    BUG-2  claiming a pending conversation activates and owns it
-//   7    BUG-0  the widget still works when storage is blocked
+// Nine scenarios from the bugfix sprint, one per shipped defect:
+//   1-2,8 BUG-1  resume: history, read state and the same id survive a reload
+//   3     BUG-1  a resolved thread never swallows the next visitor message
+//   4     BUG-3  a message on a pending (unassigned) conversation reaches the agent
+//   5     BUG-3  typing: widget -> server -> panel, with a server-side TTL
+//   6     BUG-2  claiming a pending conversation activates and owns it
+//   7     BUG-0  the widget still works when storage is blocked
+//   9     BUG-4  a live message patches the open panel without a detail refetch
 const widget = '[data-evechat="widget"]';
 const ADMIN = {
   email: process.env.EVECHAT_ADMIN_EMAIL || "admin@evechat.local",
@@ -23,6 +24,9 @@ async function visitorPage(context: BrowserContext, name?: string): Promise<Page
     await page.evaluate((n) => (window as any).ec("identify", { name: n }), name);
   }
   await page.evaluate(() => (window as any).ec("open"));
+  // The session (and its PoW) starts on first open; wait for it before any
+  // server-side conversation is queried.
+  await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
   return page;
 }
 
@@ -56,6 +60,7 @@ test.describe("behaviour", () => {
     await page.goto("/demo/test");
     await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
     const text = "پیام ماندگار " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);
     await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text);
@@ -84,6 +89,7 @@ test.describe("behaviour", () => {
     await page.goto("/demo/test");
     await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
     const text = "قبل از resolve " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);
     await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text);
@@ -250,9 +256,73 @@ test.describe("behaviour", () => {
     await page.goto("/demo/test");
     await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
     await page.evaluate(() => (window as any).ec("open"));
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
     const text = "بدون حافظه " + Date.now();
     await page.evaluate((t) => (window as any).ec("send", t), text);
     await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text, { timeout: 15_000 });
     await ctx.close();
+  });
+
+  test("8. reload resumes the same conversation id (BUG-1)", async ({ page }) => {
+    await page.goto("/demo/test");
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
+    await page.evaluate(() => (window as any).ec("open"));
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
+
+    const text = "همان گفتگو " + Date.now();
+    await page.evaluate((t) => (window as any).ec("send", t), text);
+    await expect(page.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(text);
+    const before = await page.evaluate(() => (window as any).EveChat.getState().conversationId);
+    expect(before).toBeTruthy();
+
+    await page.reload();
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.ui), undefined, { timeout: 30_000 });
+    await page.evaluate(() => (window as any).ec("open"));
+    await page.waitForFunction(() => Boolean((window as any).EveChat?.getState?.().ready), undefined, { timeout: 30_000 });
+    const after = await page.evaluate(() => (window as any).EveChat.getState().conversationId);
+    expect(after).toBe(before);
+  });
+
+  test("9. a live message patches the open panel without refetching it (BUG-4)", async ({ browser, baseURL }) => {
+    const visitorCtx = await browser.newContext();
+    const agentCtx = await browser.newContext();
+    try {
+      const name = "زنده " + Date.now();
+      const visitor = await visitorPage(visitorCtx, name);
+      const first = "اول " + Date.now();
+      await visitor.evaluate((t) => (window as any).ec("send", t), first);
+      await expect(visitor.locator(widget + " .ec-msgs .ec-msg.visitor").last()).toContainText(first);
+
+      const agent = await agentPage(agentCtx, baseURL!);
+      const row = agent.getByText(name).first();
+      await expect(row).toBeVisible({ timeout: 15_000 });
+      await row.click();
+      await expect(agent.getByText(first).first()).toBeVisible({ timeout: 15_000 });
+
+      const token = await agentToken(agentCtx, baseURL!);
+      const listRes = await agentCtx.request.get(baseURL + "/api/v1/conversations?status=pending&limit=50", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const list = await listRes.json();
+      const conv = (list.data || []).find((c: any) => c.visitor?.name === name);
+      expect(conv).toBeTruthy();
+
+      let detailRequests = 0;
+      const onRequest = (req: import("@playwright/test").Request) => {
+        const u = new URL(req.url());
+        if (u.pathname === `/api/v1/conversations/${conv.id}`) detailRequests++;
+      };
+      agent.on("request", onRequest);
+
+      const second = "دوم " + Date.now();
+      await visitor.evaluate((t) => (window as any).ec("send", t), second);
+      await expect(agent.getByText(second).first()).toBeVisible({ timeout: 15_000 });
+      await agent.waitForTimeout(500);
+      expect(detailRequests).toBe(0);
+      agent.off("request", onRequest);
+    } finally {
+      await visitorCtx.close();
+      await agentCtx.close();
+    }
   });
 });
