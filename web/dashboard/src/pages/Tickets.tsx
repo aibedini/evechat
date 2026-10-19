@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Card, Modal, Spinner } from "@/components/ui/card";
 import { EmptyState } from "@/components/EmptyState";
+import { FieldHelp } from "@/components/FieldHelp";
 import { PageHeader } from "@/components/PageHeader";
 import { cn, formatDateTime, priorityColor, timeAgo } from "@/lib/utils";
 
@@ -100,6 +101,7 @@ export function TicketsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             <span className="chip bg-slate-100 text-slate-500">{items.length}</span>
@@ -206,10 +208,12 @@ export function TicketsPage() {
           <div>
             <Label>{t("title")}</Label>
             <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <FieldHelp>{page.titleHelp}</FieldHelp>
           </div>
           <div>
             <Label>{t("description")}</Label>
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <FieldHelp>{page.descriptionHelp}</FieldHelp>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -220,10 +224,12 @@ export function TicketsPage() {
                 <option value="high">{page.priorities.high}</option>
                 <option value="urgent">{page.priorities.urgent}</option>
               </Select>
+              <FieldHelp>{page.priorityHelp}</FieldHelp>
             </div>
             <div>
               <Label>{t("dueDate")}</Label>
               <Input type="datetime-local" value={form.due_at} onChange={(e) => setForm({ ...form, due_at: e.target.value })} />
+              <FieldHelp>{page.dueHelp}</FieldHelp>
             </div>
           </div>
         </div>

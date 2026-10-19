@@ -57,6 +57,7 @@ export function KnowledgeBasePage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             <input

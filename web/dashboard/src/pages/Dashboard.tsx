@@ -98,6 +98,7 @@ export function DashboardPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={<span className="text-xs text-slate-400">{page.last14Days} · {formatJalaliLong(new Date())}</span>}
       />
 

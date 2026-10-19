@@ -176,6 +176,7 @@ export function RoutingSettingsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             <Button variant="ghost" onClick={() => setTestOpen(true)}>

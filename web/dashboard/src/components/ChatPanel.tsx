@@ -67,7 +67,7 @@ export function ChatPanel({
 
   if (!conversation) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-slate-50 text-sm text-slate-400">
+      <div className="inbox-empty flex flex-1 items-center justify-center bg-slate-50 text-sm text-slate-400">
         {t("noVisitorSelected")}
       </div>
     );

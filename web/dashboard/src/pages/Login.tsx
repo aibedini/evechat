@@ -46,6 +46,7 @@ export function LoginPage() {
           </div>
           <h1 className="text-lg font-bold">{page.heading} {t("appName")}</h1>
           <p className="mt-1 text-xs text-slate-400">{page.subtitle}</p>
+          <p className="mt-2 text-[11px] leading-5 text-slate-500">{page.intro}</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -83,6 +84,7 @@ export function LoginPage() {
               onChange={(e) => setProjectKey(e.target.value)}
               placeholder="pk_..."
             />
+            <p className="mt-1 text-[11px] text-slate-400">{page.projectKeyHelp}</p>
           </div>
           <label className="flex items-center gap-2 text-xs text-slate-600">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />

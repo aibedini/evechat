@@ -132,7 +132,7 @@ export function IntegrationsSettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <PageHeader title={page.title} intro={page.intro} />
+      <PageHeader title={page.title} intro={page.intro} guide={page.guide} />
       <div className="mb-4">
         <Callout tone="info">{page.whichOne}</Callout>
       </div>

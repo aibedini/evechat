@@ -99,6 +99,7 @@ export function WidgetSettingsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             {saved && <span className="chip bg-emerald-50 text-emerald-700">{t("saved")}</span>}

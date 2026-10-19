@@ -44,6 +44,7 @@ export function VisitorsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={<span className="chip bg-slate-100 text-slate-500">{total}</span>}
       />
 

@@ -160,7 +160,7 @@ export function InboxPage() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="px-4 pt-4">
-        <PageHeader title={copy.pages.inbox.title} intro={copy.pages.inbox.intro} />
+        <PageHeader title={copy.pages.inbox.title} intro={copy.pages.inbox.intro} guide={copy.pages.inbox.guide} />
       </div>
       <div className="inbox flex min-h-0 flex-1" data-active={!!activeId}>
         <div className="inbox-list flex flex-col">

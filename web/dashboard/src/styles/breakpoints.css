@@ -78,7 +78,8 @@
     display: none;
   }
   .inbox:not([data-active="true"]) .inbox-chat,
-  .inbox:not([data-active="true"]) .inbox-visitor {
+  .inbox:not([data-active="true"]) .inbox-visitor,
+  .inbox:not([data-active="true"]) .inbox-empty {
     display: none;
   }
   .inbox-chat {

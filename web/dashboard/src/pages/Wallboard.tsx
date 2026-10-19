@@ -76,6 +76,7 @@ export function WallboardPage() {
           <div>
             <div className="text-2xl font-bold">{data?.project || "EveChat"}</div>
             <div className="text-xs text-slate-500">{page.readOnly}</div>
+            <div className="mt-1 max-w-md text-[11px] leading-4 text-slate-500">{page.intro}</div>
           </div>
         </div>
         <div className="text-end">

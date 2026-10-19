@@ -36,6 +36,7 @@ export function DiagnosticsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             {report.data && (

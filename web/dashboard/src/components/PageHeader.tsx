@@ -1,15 +1,21 @@
 import { useState, type ReactNode } from "react";
 import { t } from "@/lib/i18n";
+import { PageGuide, type PageGuideContent } from "@/components/PageGuide";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
   title: string;
   intro?: string;
   actions?: ReactNode;
+  guide?: PageGuideContent;
 }
 
-/** Title + intro + primary action, with a collapsible intro on mobile. */
-export function PageHeader({ title, intro, actions }: PageHeaderProps) {
+/**
+ * Title + intro + primary action, followed by the page's short "what do I do
+ * here?" guide. The intro stays a two-line summary on small screens; the guide
+ * below it is always visible so a new user is never left without a next step.
+ */
+export function PageHeader({ title, intro, actions, guide }: PageHeaderProps) {
   const [open, setOpen] = useState(false);
   return (
     <header className="page-header">
@@ -25,6 +31,7 @@ export function PageHeader({ title, intro, actions }: PageHeaderProps) {
           {open ? t("less") : t("more")}
         </button>
       ) : null}
+      {guide ? <PageGuide steps={guide.steps} note={guide.note} /> : null}
     </header>
   );
 }

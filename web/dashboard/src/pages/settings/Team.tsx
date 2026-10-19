@@ -88,6 +88,7 @@ export function TeamSettingsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={<Button onClick={() => setEditing({ ...blank })}>+ {page.addMember}</Button>}
       />
 

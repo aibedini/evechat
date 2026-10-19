@@ -77,6 +77,7 @@ export function ActivityPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={
           <>
             <span className="chip bg-slate-100 text-slate-500">{entries.data?.total || 0}</span>

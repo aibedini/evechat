@@ -33,6 +33,7 @@ export function ForgotPage() {
       <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
         <h1 className="mb-1 text-lg font-bold">{page.title}</h1>
         <p className="mb-5 text-xs text-slate-400">{page.body}</p>
+        <p className="mb-4 text-[11px] leading-5 text-slate-400">{page.hint}</p>
         {sent ? (
           <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">
             {page.sent}

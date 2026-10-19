@@ -170,6 +170,7 @@ export function ChannelsSettingsPage() {
       <PageHeader
         title={page.title}
         intro={page.intro}
+        guide={page.guide}
         actions={<Button onClick={() => setEditing({ ...blank })}>+ {page.addChannel}</Button>}
       />
 

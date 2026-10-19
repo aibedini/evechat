@@ -46,7 +46,8 @@ export function ResetPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
-        <h1 className="mb-5 text-lg font-bold">{page.title}</h1>
+        <h1 className="mb-1 text-lg font-bold">{page.title}</h1>
+        <p className="mb-5 text-xs leading-5 text-slate-400">{page.intro}</p>
         {!token && <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{page.invalidLink}</div>}
         {done ? (
           <div className="space-y-4">
