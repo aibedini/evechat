@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, apiBase, getAccessToken } from "@/lib/api";
-import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
-import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
+import { Card, Modal, Spinner } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { formatDateTime } from "@/lib/utils";
+
+const page = copy.pages.activity;
 
 interface AuditEntry {
   id: string;
@@ -23,13 +27,13 @@ interface AuditEntry {
 }
 
 const ACTIONS = [
-  { value: "", label: "همه رویدادها" },
-  { value: "agent.", label: "کاربران" },
-  { value: "conversation.", label: "گفتگوها" },
-  { value: "settings.", label: "تنظیمات" },
-  { value: "security.", label: "امنیت" },
-  { value: "setup.", label: "نصب" },
-  { value: "login.", label: "ورود" },
+  { value: "", label: page.allEvents },
+  { value: "agent.", label: page.teamEvents },
+  { value: "conversation.", label: page.conversationEvents },
+  { value: "settings.", label: page.settingsEvents },
+  { value: "security.", label: page.securityEvents },
+  { value: "setup.", label: page.setupEvents },
+  { value: "login.", label: page.loginEvents },
 ];
 
 export function ActivityPage() {
@@ -70,24 +74,27 @@ export function ActivityPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-bold">گزارش فعالیت</h1>
-        <span className="chip bg-slate-100 text-slate-500">{entries.data?.total || 0}</span>
-        <div className="ms-auto flex flex-wrap items-center gap-2">
-          <Select className="w-40" value={action} onChange={(e) => setAction(e.target.value)}>
-            {ACTIONS.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
-              </option>
-            ))}
-          </Select>
-          <Input className="w-40" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <Input className="w-40" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          <Button variant="ghost" onClick={exportCSV}>
-            CSV
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={
+          <>
+            <span className="chip bg-slate-100 text-slate-500">{entries.data?.total || 0}</span>
+            <Select className="w-40" value={action} onChange={(e) => setAction(e.target.value)}>
+              {ACTIONS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </Select>
+            <Input className="w-40" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Input className="w-40" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Button variant="ghost" onClick={exportCSV}>
+              CSV
+            </Button>
+          </>
+        }
+      />
 
       <Card className="overflow-hidden p-0">
         {entries.isLoading ? (
@@ -95,16 +102,21 @@ export function ActivityPage() {
             <Spinner />
           </div>
         ) : (entries.data?.data || []).length === 0 ? (
-          <Empty>{t("empty")}</Empty>
+          <EmptyState
+            title={page.empty.title}
+            body={page.empty.body}
+            cta={{ label: page.empty.cta, to: page.empty.to }}
+            icon="📜"
+          />
         ) : (
           <table className="w-full text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-start font-medium">زمان</th>
-                <th className="px-4 py-3 text-start font-medium">رویداد</th>
-                <th className="px-4 py-3 text-start font-medium">کاربر</th>
-                <th className="px-4 py-3 text-start font-medium">هدف</th>
-                <th className="px-4 py-3 text-start font-medium">IP</th>
+                <th className="px-4 py-3 text-start font-medium">{page.time}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.event}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.actor}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.target}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.ip}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +135,7 @@ export function ActivityPage() {
                     {(e.target_type || "") + " " + (e.target_id || "")}
                   </td>
                   <td className="px-4 py-2.5 text-slate-400" dir="ltr">
-                    {e.ip || "—"}
+                    {e.ip || copy.misc.dash}
                   </td>
                 </tr>
               ))}
@@ -132,7 +144,7 @@ export function ActivityPage() {
         )}
       </Card>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="جزئیات رویداد">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={page.details}>
         {selected && (
           <div className="space-y-3 text-xs">
             <pre dir="ltr" className="max-h-72 overflow-auto rounded-xl bg-slate-900 p-3 text-[11px] text-slate-200">

@@ -1,7 +1,12 @@
 import type { Conversation } from "@/lib/types";
 import { cn, initials, statusColor, statusLabel, timeAgo } from "@/lib/utils";
 import { t } from "@/lib/i18n";
-import { Empty, Spinner } from "./ui/card";
+import { copy } from "@/lib/copy.fa";
+import { EmptyState } from "./EmptyState";
+import { HelpTip } from "./HelpTip";
+import { Spinner } from "./ui/card";
+
+const inbox = copy.pages.inbox;
 
 const tabs = [
   { key: "pending", label: t("pending") },
@@ -56,6 +61,7 @@ export function ConversationList({
             </button>
           ))}
           <span className="ms-auto self-center pe-1 text-[11px] text-slate-400">{total}</span>
+          <HelpTip text={inbox.tabsHelp} />
         </div>
       </div>
 
@@ -65,10 +71,19 @@ export function ConversationList({
             <Spinner />
           </div>
         )}
-        {!loading && items.length === 0 && <Empty>{t("noConversations")}</Empty>}
+        {!loading && items.length === 0 && (
+          <div className="p-3">
+            <EmptyState
+              title={inbox.empty.title}
+              body={inbox.empty.body}
+              cta={{ label: inbox.empty.cta, to: inbox.empty.to }}
+              icon="💬"
+            />
+          </div>
+        )}
         {items.map((c) => {
           const visitor = c.visitor;
-          const name = visitor?.name || visitor?.phone || "کاربر ناشناس";
+          const name = visitor?.name || visitor?.phone || inbox.unknownVisitor;
           return (
             <button
               key={c.id}

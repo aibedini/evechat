@@ -3,10 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Agent, ListResponse } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Switch } from "@/components/ui/input";
-import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
+import { Card, Modal, Spinner } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { FieldHelp } from "@/components/FieldHelp";
+import { HelpTip } from "@/components/HelpTip";
+import { PageHeader } from "@/components/PageHeader";
 import { cn, timeAgo } from "@/lib/utils";
+
+const page = copy.pages.team;
 
 interface TeamForm {
   id: string;
@@ -78,12 +85,11 @@ export function TeamSettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">{t("team")}</h1>
-        <Button className="ms-auto" onClick={() => setEditing({ ...blank })}>
-          + کارشناس
-        </Button>
-      </div>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={<Button onClick={() => setEditing({ ...blank })}>+ {page.addMember}</Button>}
+      />
 
       <Card className="overflow-hidden p-0">
         {team.isLoading ? (
@@ -91,17 +97,22 @@ export function TeamSettingsPage() {
             <Spinner />
           </div>
         ) : items.length === 0 ? (
-          <Empty>{t("empty")}</Empty>
+          <EmptyState
+            title={page.empty.title}
+            body={page.empty.body}
+            cta={{ label: page.empty.cta, onClick: () => setEditing({ ...blank }) }}
+            icon="👤"
+          />
         ) : (
           <table className="table-cards w-full text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-start font-medium">نام</th>
-                <th className="px-4 py-3 text-start font-medium">ایمیل</th>
-                <th className="px-4 py-3 text-start font-medium">نقش</th>
-                <th className="px-4 py-3 text-start font-medium">تلگرام</th>
-                <th className="px-4 py-3 text-start font-medium">سقف گفتگو</th>
-                <th className="px-4 py-3 text-start font-medium">وضعیت</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.name}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.email}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.role}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.telegram}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.max}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.columns.status}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -109,14 +120,14 @@ export function TeamSettingsPage() {
               {items.map((a) => (
                 <tr key={a.id} className="border-t border-slate-50">
                   <td className="px-4 py-3 font-medium">{a.name}</td>
-                  <td className="px-4 py-3" dir="ltr" data-label="ایمیل">
+                  <td className="px-4 py-3" dir="ltr" data-label={page.columns.email}>
                     {a.email}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="chip bg-slate-100 text-slate-600">{a.role}</span>
+                    <span className="chip bg-slate-100 text-slate-600">{page.roles[a.role as keyof typeof page.roles] || a.role}</span>
                   </td>
                   <td className="px-4 py-3" dir="ltr">
-                    {a.telegram_id || "—"}
+                    {a.telegram_id || copy.misc.dash}
                   </td>
                   <td className="px-4 py-3">{a.max_conversations}</td>
                   <td className="px-4 py-3">
@@ -148,11 +159,11 @@ export function TeamSettingsPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          const pw = prompt("رمز عبور جدید (حداقل ۸ کاراکتر):");
+                          const pw = prompt(page.newPasswordPrompt);
                           if (pw && pw.length >= 8) resetPassword.mutate({ id: a.id, password: pw });
                         }}
                       >
-                        رمز
+                        {page.passwordButton}
                       </Button>
                       <Button
                         size="sm"
@@ -173,7 +184,7 @@ export function TeamSettingsPage() {
       <Modal
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.id ? t("edit") : "کارشناس جدید"}
+        title={editing?.id ? t("edit") : page.newMember}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEditing(null)}>
@@ -202,16 +213,22 @@ export function TeamSettingsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>{t("role")}</Label>
+                <Label>
+                  <span className="inline-flex items-center gap-1">
+                    {t("role")}
+                    <HelpTip text={page.rolesHelp} />
+                  </span>
+                </Label>
                 <Select value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })}>
-                  <option value="agent">کارشناس</option>
-                  <option value="admin">مدیر</option>
-                  <option value="superadmin">سوپرادمین</option>
+                  <option value="agent">{page.roles.agent}</option>
+                  <option value="admin">{page.roles.admin}</option>
+                  <option value="superadmin">{page.roles.superadmin}</option>
                 </Select>
               </div>
               <div>
                 <Label>{t("telegramId")}</Label>
                 <Input dir="ltr" value={editing.telegram_id} onChange={(e) => setEditing({ ...editing, telegram_id: e.target.value })} />
+                <FieldHelp>{page.telegramHelp}</FieldHelp>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -222,9 +239,10 @@ export function TeamSettingsPage() {
                   value={editing.max_conversations}
                   onChange={(e) => setEditing({ ...editing, max_conversations: Number(e.target.value) })}
                 />
+                <FieldHelp>{page.maxHelp}</FieldHelp>
               </div>
               <div>
-                <Label>{editing.id ? "رمز جدید (اختیاری)" : t("password")}</Label>
+                <Label>{editing.id ? page.newPasswordOptional : t("password")}</Label>
                 <Input
                   dir="ltr"
                   type="password"
@@ -233,7 +251,7 @@ export function TeamSettingsPage() {
                 />
               </div>
             </div>
-            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="فعال" />
+            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label={page.active} />
           </div>
         )}
       </Modal>

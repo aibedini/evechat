@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { copy } from "@/lib/copy.fa";
+
+const page = copy.pages.wallboard;
 
 interface WallboardData {
   project: string;
@@ -39,13 +42,13 @@ export function WallboardPage() {
           setError("");
         }
       } catch {
-        if (alive) setError("اتصال به سرور برقرار نیست");
+        if (alive) setError(page.errorUnavailable);
       }
     };
     if (token) {
       load();
     } else {
-      setError("توکن صفحه‌ی نمایش داده نشده است");
+      setError(page.errorNoToken);
     }
     const timer = setInterval(load, 15000);
     return () => {
@@ -56,12 +59,12 @@ export function WallboardPage() {
 
   const tiles = data
     ? [
-        { label: "در صف", value: data.pending, tone: "text-amber-300" },
-        { label: "در حال بررسی", value: data.active, tone: "text-emerald-300" },
-        { label: "پاسخ امروز", value: data.resolved, tone: "text-sky-300" },
-        { label: "کارشناسان آنلاین", value: `${data.agents.online}/${data.agents.total}`, tone: "text-violet-300" },
-        { label: "میانگین پاسخ اول", value: `${Math.round(data.first_response_seconds)}s`, tone: "text-slate-200" },
-        { label: "رضایت", value: data.csat_avg ? data.csat_avg.toFixed(1) : "—", tone: "text-slate-200" },
+        { label: page.queue, value: data.pending, tone: "text-amber-300" },
+        { label: page.active, value: data.active, tone: "text-emerald-300" },
+        { label: page.todayAnswers, value: data.resolved, tone: "text-sky-300" },
+        { label: page.agentsOnline, value: `${data.agents.online}/${data.agents.total}`, tone: "text-violet-300" },
+        { label: page.avgFirst, value: `${Math.round(data.first_response_seconds)} ${copy.time.seconds}`, tone: "text-slate-200" },
+        { label: page.csat, value: data.csat_avg ? data.csat_avg.toFixed(1) : copy.misc.dash, tone: "text-slate-200" },
       ]
     : [];
 
@@ -72,12 +75,12 @@ export function WallboardPage() {
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-600 text-2xl">⚡</span>
           <div>
             <div className="text-2xl font-bold">{data?.project || "EveChat"}</div>
-            <div className="text-xs text-slate-500">صفحه‌ی نمایش — فقط خواندنی</div>
+            <div className="text-xs text-slate-500">{page.readOnly}</div>
           </div>
         </div>
         <div className="text-end">
           <div className="font-mono text-3xl tabular-nums">{clock.toLocaleTimeString("fa-IR")}</div>
-          <div className="text-xs text-slate-500">{clock.toLocaleDateString("fa-IR")} · پنجره ۲۴ ساعت</div>
+          <div className="text-xs text-slate-500">{clock.toLocaleDateString("fa-IR")} · {page.window}</div>
         </div>
       </header>
 
@@ -94,9 +97,7 @@ export function WallboardPage() {
         ))}
       </div>
 
-      <footer className="mt-6 text-center text-[11px] text-slate-600">
-        به‌روزرسانی خودکار هر ۱۵ ثانیه · بدون محتوای پیام و بدون اطلاعات بازدیدکننده
-      </footer>
+      <footer className="mt-6 text-center text-[11px] text-slate-600">{page.footer}</footer>
     </div>
   );
 }

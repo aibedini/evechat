@@ -1,8 +1,12 @@
 import { useState } from "react";
 import type { Conversation, Visitor } from "@/lib/types";
 import { t } from "@/lib/i18n";
-import { formatDateTime, maskPhone, timeAgo } from "@/lib/utils";
+import { copy } from "@/lib/copy.fa";
+import { formatDateTime, maskPhone, statusLabel, timeAgo } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { HelpTip } from "./HelpTip";
+
+const page = copy.pages.customers;
 
 function Row({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -53,12 +57,12 @@ export function VisitorPanel({
       <div className="border-b border-slate-100 p-4">
         <div className="flex items-center gap-2">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
-            {(visitor.name || "؟").slice(0, 2)}
+            {(visitor.name || copy.misc.unknownInitial).slice(0, 2)}
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{visitor.name || "کاربر ناشناس"}</div>
+            <div className="truncate text-sm font-semibold">{visitor.name || page.unknown}</div>
             <div className="text-[11px] text-slate-400">
-              {visitor.is_banned ? "مسدود" : t("online")} · {timeAgo(visitor.last_seen_at)}
+              {visitor.is_banned ? page.banned : t("online")} · {timeAgo(visitor.last_seen_at)}
             </div>
           </div>
         </div>
@@ -69,6 +73,9 @@ export function VisitorPanel({
           <Button variant="ghost" size="sm" onClick={onConvertTicket}>
             {t("convertTicket")}
           </Button>
+        </div>
+        <div className="mt-1 flex justify-end">
+          <HelpTip text={page.banHelp} />
         </div>
       </div>
 
@@ -91,33 +98,33 @@ export function VisitorPanel({
         <div className="space-y-3 p-4">
           <div>
             <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">{t("visitorInfo")}</div>
-            <Row label="موبایل" value={maskPhone(visitor.phone || visitor.eve_mobile)} />
-            <Row label="ایمیل" value={visitor.email} />
-            <Row label="دستگاه" value={visitor.device_type} />
-            <Row label="سیستم" value={visitor.os} />
-            <Row label="مرورگر" value={visitor.browser} />
-            <Row label="زبان" value={visitor.language} />
-            <Row label="IP" value={visitor.ip} />
+            <Row label={page.fields.mobile} value={maskPhone(visitor.phone || visitor.eve_mobile)} />
+            <Row label={page.fields.email} value={visitor.email} />
+            <Row label={page.fields.device} value={visitor.device_type} />
+            <Row label={page.fields.os} value={visitor.os} />
+            <Row label={page.fields.browser} value={visitor.browser} />
+            <Row label={page.fields.language} value={visitor.language} />
+            <Row label={page.fields.ip} value={visitor.ip} />
           </div>
 
           <div className="rounded-xl bg-slate-50 p-3">
             <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">EVE</div>
-            <Row label="شناسه کاربر" value={visitor.eve_user_id} />
-            <Row label="نمایندگی" value={visitor.eve_reseller_id} />
+            <Row label={page.fields.eveUserId} value={visitor.eve_user_id} />
+            <Row label={page.fields.reseller} value={visitor.eve_reseller_id} />
             <Row label={t("plan")} value={plan || t("noSubscription")} />
             <Row label={t("expiry")} value={expiry ? formatDateTime(expiry) : undefined} />
             <Row label={t("daysLeft")} value={left !== null ? String(left) : undefined} />
           </div>
 
           <div className="rounded-xl bg-slate-50 p-3">
-            <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">صفحه فعلی</div>
+            <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">{page.currentPage}</div>
             <div className="truncate text-xs text-brand-700">{conversation?.page_url || "—"}</div>
             <div className="mt-1 truncate text-[11px] text-slate-500">{conversation?.page_title || ""}</div>
           </div>
 
           {visitor.metadata && Object.keys(visitor.metadata).length > 0 && (
             <div className="rounded-xl bg-slate-50 p-3">
-              <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">متادیتا</div>
+              <div className="mb-1 text-[10px] font-bold uppercase text-slate-400">{page.metadata}</div>
               {Object.entries(visitor.metadata).map(([k, v]) => (
                 <Row key={k} label={k} value={String(v)} />
               ))}
@@ -133,7 +140,7 @@ export function VisitorPanel({
                 <span className="font-medium">{c.subject || c.id.slice(-6)}</span>
                 <span className="text-slate-400">{timeAgo(c.created_at)}</span>
               </div>
-              <div className="text-[11px] text-slate-400">{c.status}</div>
+              <div className="text-[11px] text-slate-400">{statusLabel(c.status)}</div>
             </div>
           ))}
         </div>

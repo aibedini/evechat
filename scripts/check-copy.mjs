@@ -31,25 +31,7 @@ const navKeys = [
   "health",
 ];
 
-const PENDING = new Set([
-  "components/ChatPanel.tsx",
-  "components/ConversationList.tsx",
-  "components/Sidebar.tsx",
-  "components/VisitorPanel.tsx",
-  "pages/Forgot.tsx",
-  "pages/Login.tsx",
-  "pages/Reset.tsx",
-  "pages/Wallboard.tsx",
-  "pages/settings/Activity.tsx",
-  "pages/settings/Channels.tsx",
-  "pages/settings/Diagnostics.tsx",
-  "pages/settings/Integrations.tsx",
-  "pages/settings/Routing.tsx",
-  "pages/settings/Security.tsx",
-  "pages/settings/Team.tsx",
-  "pages/settings/Webhooks.tsx",
-  "pages/settings/Widget.tsx",
-]);
+const PENDING = new Set([]);
 
 const errors = [];
 

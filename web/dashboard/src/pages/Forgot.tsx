@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+
+const page = copy.pages.forgot;
 
 export function ForgotPage() {
   const [email, setEmail] = useState("");
@@ -28,13 +31,11 @@ export function ForgotPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
-        <h1 className="mb-1 text-lg font-bold">بازیابی رمز عبور</h1>
-        <p className="mb-5 text-xs text-slate-400">
-          اگر ایمیل شما در سیستم ثبت شده باشد، لینک بازیابی ارسال می‌شود.
-        </p>
+        <h1 className="mb-1 text-lg font-bold">{page.title}</h1>
+        <p className="mb-5 text-xs text-slate-400">{page.body}</p>
         {sent ? (
           <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">
-            درخواست ثبت شد. صندوق ایمیل خود را بررسی کنید.
+            {page.sent}
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
@@ -51,13 +52,13 @@ export function ForgotPage() {
             </div>
             {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t("loading") : "ارسال لینک بازیابی"}
+              {loading ? t("loading") : page.submit}
             </Button>
           </form>
         )}
         <div className="mt-4 text-center text-xs">
           <Link to="/login" className="text-brand-600 hover:underline">
-            بازگشت به ورود
+            {page.back}
           </Link>
         </div>
       </div>

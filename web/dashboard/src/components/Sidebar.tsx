@@ -19,10 +19,10 @@ const settings = [
   { to: "/settings/team", label: t("team"), icon: "👤" },
   { to: "/settings/integrations", label: t("integrations"), icon: "🔌" },
   { to: "/settings/webhooks", label: t("webhooks"), icon: "🪝" },
-  { to: "/settings/channels", label: "کانال‌ها", icon: "🔀" },
-  { to: "/settings/security", label: "امنیت", icon: "🛡️" },
-  { to: "/settings/activity", label: "گزارش فعالیت", icon: "📜" },
-  { to: "/settings/diagnostics", label: "سلامت سیستم", icon: "🩺" },
+  { to: "/settings/channels", label: t("channels"), icon: "🔀" },
+  { to: "/settings/security", label: t("security"), icon: "🛡️" },
+  { to: "/settings/activity", label: t("activity"), icon: "📜" },
+  { to: "/settings/diagnostics", label: t("health"), icon: "🩺" },
 ];
 
 export function Sidebar({ online, onNavigate }: { online: boolean; onNavigate?: () => void }) {
@@ -75,9 +75,9 @@ export function Sidebar({ online, onNavigate }: { online: boolean; onNavigate?: 
           <button
             onClick={() => setDark(toggleTheme() === "dark")}
             className="flex-1 rounded-xl px-3 py-2 text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
-            aria-label={dark ? "حالت روشن" : "حالت تاریک"}
+            aria-label={dark ? t("lightMode") : t("darkMode")}
           >
-            {dark ? "☀️ روشن" : "🌙 تاریک"}
+            {dark ? t("themeLight") : t("themeDark")}
           </button>
           <button
             onClick={async () => {

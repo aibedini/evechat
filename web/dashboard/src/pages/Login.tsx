@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+
+const page = copy.pages.login;
 
 export function LoginPage() {
   const { signIn, session } = useAuth();
@@ -28,7 +31,7 @@ export function LoginPage() {
       const from = (location.state as any)?.from?.pathname || "/inbox";
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err?.message || "ورود ناموفق بود");
+      setError(err?.message || copy.errors.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -41,8 +44,8 @@ export function LoginPage() {
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-600 text-2xl text-white">
             ⚡
           </div>
-          <h1 className="text-lg font-bold">ورود به {t("appName")}</h1>
-          <p className="mt-1 text-xs text-slate-400">پنل پشتیبانی مشتریان</p>
+          <h1 className="text-lg font-bold">{page.heading} {t("appName")}</h1>
+          <p className="mt-1 text-xs text-slate-400">{page.subtitle}</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -72,7 +75,7 @@ export function LoginPage() {
             />
           </div>
           <div>
-            <Label htmlFor="projectKey">کلید پروژه (اختیاری)</Label>
+            <Label htmlFor="projectKey">{page.projectKeyLabel}</Label>
             <Input
               id="projectKey"
               dir="ltr"
@@ -93,7 +96,7 @@ export function LoginPage() {
           </Button>
           <div className="text-center text-xs">
             <Link to="/forgot" className="text-slate-500 hover:text-brand-600">
-              رمز عبور را فراموش کرده‌اید؟
+              {page.forgotLink}
             </Link>
           </div>
         </form>

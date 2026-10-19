@@ -3,11 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { ListResponse, RoutingRule } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { useAgents } from "@/hooks/useConversations";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
-import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
+import { Card, Modal, Spinner } from "@/components/ui/card";
+import { Callout } from "@/components/Callout";
+import { EmptyState } from "@/components/EmptyState";
+import { HelpTip } from "@/components/HelpTip";
+import { PageHeader } from "@/components/PageHeader";
 import { cn } from "@/lib/utils";
+
+const page = copy.pages.routing;
 
 interface RuleForm {
   id: string;
@@ -166,12 +173,22 @@ export function RoutingSettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">{t("routing")}</h1>
-        <Button className="ms-auto" variant="ghost" onClick={() => setTestOpen(true)}>
-          تست قانون
-        </Button>
-        <Button onClick={() => setEditing({ ...emptyForm })}>+ قانون جدید</Button>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setTestOpen(true)}>
+              {page.testRule}
+            </Button>
+            <HelpTip text={page.testHelp} />
+            <Button onClick={() => setEditing({ ...emptyForm })}>+ {page.newRule}</Button>
+          </>
+        }
+      />
+
+      <div className="mb-4">
+        <Callout tone="info">{page.callout}</Callout>
       </div>
 
       <Card className="p-0">
@@ -180,7 +197,12 @@ export function RoutingSettingsPage() {
             <Spinner />
           </div>
         ) : items.length === 0 ? (
-          <Empty>قانونی تعریف نشده است</Empty>
+          <EmptyState
+            title={page.empty.title}
+            body={page.empty.body}
+            cta={{ label: page.empty.cta, onClick: () => setEditing({ ...emptyForm }) }}
+            icon="🧭"
+          />
         ) : (
           <div>
             {items.map((rule) => (
@@ -203,12 +225,12 @@ export function RoutingSettingsPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{rule.name}</span>
                     <span className={cn("chip", rule.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-                      {rule.is_active ? "فعال" : "غیرفعال"}
+                      {rule.is_active ? page.active : page.inactive}
                     </span>
-                    <span className="chip bg-slate-100 text-slate-500">اولویت {rule.priority}</span>
+                    <span className="chip bg-slate-100 text-slate-500">{page.priority} {rule.priority}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-slate-400">
-                    {Object.keys(rule.conditions || {}).length === 0 && <span>بدون شرط (همیشه)</span>}
+                    {Object.keys(rule.conditions || {}).length === 0 && <span>{page.always}</span>}
                     {Object.entries(rule.conditions || {}).map(([k, v]) => (
                       <span key={k} className="rounded bg-slate-50 px-1.5 py-0.5">
                         {k}: {JSON.stringify(v)}
@@ -217,7 +239,7 @@ export function RoutingSettingsPage() {
                   </div>
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {rule.route_to?.agent_id ? "→ کارشناس" : rule.route_to?.telegram_id ? "→ تلگرام" : rule.route_to?.phone ? "→ پیامک" : "→ صف"}
+                  {rule.route_to?.agent_id ? page.routeAgent : rule.route_to?.telegram_id ? page.routeTelegram : rule.route_to?.phone ? page.routeSms : page.routeQueue}
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => setEditing(toForm(rule))}>
                   {t("edit")}
@@ -238,7 +260,7 @@ export function RoutingSettingsPage() {
       <Modal
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.id ? t("edit") : "قانون جدید"}
+        title={editing?.id ? t("edit") : page.newRule}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEditing(null)}>
@@ -258,7 +280,7 @@ export function RoutingSettingsPage() {
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
               </div>
               <div>
-                <Label>اولویت</Label>
+                <Label>{page.priority}</Label>
                 <Input
                   type="number"
                   value={editing.priority}
@@ -268,42 +290,42 @@ export function RoutingSettingsPage() {
             </div>
 
             <div className="rounded-xl bg-slate-50 p-3">
-              <div className="mb-2 text-xs font-semibold text-slate-600">شرایط (خالی = بدون محدودیت)</div>
+              <div className="mb-2 text-xs font-semibold text-slate-600">{page.conditionsTitle}</div>
               <div className="grid gap-2 md:grid-cols-2">
                 <div>
-                  <Label>دامنه‌ها</Label>
+                  <Label>{page.domainsLabel}</Label>
                   <Input dir="ltr" value={editing.domains} onChange={(e) => setEditing({ ...editing, domains: e.target.value })} placeholder="eve.ir" />
                 </div>
                 <div>
-                  <Label>صفحه‌ها (glob)</Label>
+                  <Label>{page.pagesLabel}</Label>
                   <Input dir="ltr" value={editing.pages} onChange={(e) => setEditing({ ...editing, pages: e.target.value })} placeholder="/billing*, */subscription" />
                 </div>
                 <div>
-                  <Label>دستگاه‌ها</Label>
+                  <Label>{page.devicesLabel}</Label>
                   <Input dir="ltr" value={editing.devices} onChange={(e) => setEditing({ ...editing, devices: e.target.value })} placeholder="mobile, tablet" />
                 </div>
                 <div>
-                  <Label>زبان‌ها</Label>
+                  <Label>{page.languagesLabel}</Label>
                   <Input dir="ltr" value={editing.languages} onChange={(e) => setEditing({ ...editing, languages: e.target.value })} placeholder="fa, en" />
                 </div>
                 <div>
-                  <Label>شناسه نمایندگی</Label>
+                  <Label>{page.resellerLabel}</Label>
                   <Input dir="ltr" value={editing.resellers} onChange={(e) => setEditing({ ...editing, resellers: e.target.value })} />
                 </div>
                 <div>
-                  <Label>ساعات کاری</Label>
+                  <Label>{page.hoursLabel}</Label>
                   <Select
                     value={editing.businessHours}
                     onChange={(e) => setEditing({ ...editing, businessHours: e.target.value })}
                   >
-                    <option value="any">بدون شرط</option>
-                    <option value="true">داخل ساعات کاری</option>
-                    <option value="false">خارج از ساعات کاری</option>
+                    <option value="any">{page.anyCondition}</option>
+                    <option value="true">{page.insideHours}</option>
+                    <option value="false">{page.outsideHours}</option>
                   </Select>
                 </div>
               </div>
               <div className="mt-2">
-                <Label>متغیرها (JSON)</Label>
+                <Label>{page.variablesLabel}</Label>
                 <Textarea
                   className="min-h-[70px] font-mono text-xs"
                   dir="ltr"
@@ -314,10 +336,10 @@ export function RoutingSettingsPage() {
             </div>
 
             <div className="rounded-xl bg-slate-50 p-3">
-              <div className="mb-2 text-xs font-semibold text-slate-600">مقصد</div>
+              <div className="mb-2 text-xs font-semibold text-slate-600">{page.destination}</div>
               <div className="grid gap-2 md:grid-cols-3">
                 <div>
-                  <Label>کارشناس</Label>
+                  <Label>{page.agent}</Label>
                   <Select value={editing.agent_id} onChange={(e) => setEditing({ ...editing, agent_id: e.target.value })}>
                     <option value="">—</option>
                     {(agents.data?.data || []).map((a: any) => (
@@ -328,22 +350,22 @@ export function RoutingSettingsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>شناسه تلگرام</Label>
+                  <Label>{page.telegramId}</Label>
                   <Input dir="ltr" value={editing.telegram_id} onChange={(e) => setEditing({ ...editing, telegram_id: e.target.value })} />
                 </div>
                 <div>
-                  <Label>شماره پیامک</Label>
+                  <Label>{page.smsPhone}</Label>
                   <Input dir="ltr" value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} />
                 </div>
               </div>
             </div>
 
             <div>
-              <Label>پاسخ خودکار</Label>
+              <Label>{page.autoReply}</Label>
               <Textarea value={editing.auto_reply} onChange={(e) => setEditing({ ...editing, auto_reply: e.target.value })} />
             </div>
 
-            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="فعال" />
+            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label={page.activeLabel} />
           </div>
         )}
       </Modal>
@@ -351,32 +373,32 @@ export function RoutingSettingsPage() {
       <Modal
         open={testOpen}
         onClose={() => setTestOpen(false)}
-        title="تست قانون"
+        title={page.testRule}
         footer={
           <>
             <Button variant="ghost" onClick={() => setTestOpen(false)}>
-              بستن
+              {page.close}
             </Button>
-            <Button onClick={runTest}>اجرای تست</Button>
+            <Button onClick={runTest}>{page.runTest}</Button>
           </>
         }
       >
         <div className="space-y-3">
           <div>
-            <Label>آدرس صفحه</Label>
+            <Label>{page.pageUrl}</Label>
             <Input dir="ltr" value={sample.url} onChange={(e) => setSample({ ...sample, url: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>دستگاه</Label>
+              <Label>{copy.pages.customers.fields.device}</Label>
               <Select value={sample.device} onChange={(e) => setSample({ ...sample, device: e.target.value })}>
-                <option value="mobile">mobile</option>
-                <option value="tablet">tablet</option>
-                <option value="desktop">desktop</option>
+                <option value="mobile">{copy.pages.customers.devices.mobile}</option>
+                <option value="tablet">{copy.pages.customers.devices.tablet}</option>
+                <option value="desktop">{copy.pages.customers.devices.desktop}</option>
               </Select>
             </div>
             <div>
-              <Label>زبان</Label>
+              <Label>{copy.pages.customers.fields.language}</Label>
               <Input dir="ltr" value={sample.language} onChange={(e) => setSample({ ...sample, language: e.target.value })} />
             </div>
           </div>

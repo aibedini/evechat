@@ -3,10 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Channel, ChannelInboxEntry, ListResponse } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Switch, Textarea, Select } from "@/components/ui/input";
-import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
+import { Card, Modal, Spinner } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { FieldHelp } from "@/components/FieldHelp";
+import { PageHeader } from "@/components/PageHeader";
 import { cn, formatDateTime } from "@/lib/utils";
+
+const page = copy.pages.channels;
 
 interface ChannelForm {
   id: string;
@@ -64,7 +70,7 @@ export function ChannelsSettingsPage() {
       try {
         mapping = JSON.parse(form.mapping || "{}");
       } catch {
-        throw new Error("نگاشت باید JSON معتبر باشد");
+        throw new Error(page.invalidMapping);
       }
       const body = {
         name: form.name,
@@ -86,7 +92,7 @@ export function ChannelsSettingsPage() {
       setError("");
       qc.invalidateQueries({ queryKey: ["channels"] });
     },
-    onError: (err: any) => setError(err?.message || "خطا در ذخیره"),
+    onError: (err: any) => setError(err?.message || page.saveError),
   });
 
   const rotate = useMutation({
@@ -109,7 +115,7 @@ export function ChannelsSettingsPage() {
   const test = useMutation({
     mutationFn: (id: string) => api(`/api/v1/channels/${id}/test`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["channel-inbox"] }),
-    onError: (err: any) => setError(err?.message || "خطا در تست"),
+    onError: (err: any) => setError(err?.message || page.testError),
   });
 
   const runPreview = async (ch: Channel) => {
@@ -121,7 +127,7 @@ export function ChannelsSettingsPage() {
       });
       setPreview(JSON.stringify(res, null, 2));
     } catch (e: any) {
-      setPreview("خطا: " + (e?.message || "بدنه نامعتبر"));
+      setPreview(t("error") + ": " + (e?.message || page.invalidBody));
     }
   };
 
@@ -134,20 +140,19 @@ export function ChannelsSettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">کانال‌ها</h1>
-        <p className="text-xs text-slate-500">راه‌هایی که مشتری با شما حرف می‌زند (پیامک، پیام‌رسان‌ها)</p>
-        <Button className="ms-auto" onClick={() => setEditing({ ...blank })}>
-          + کانال
-        </Button>
-      </div>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={<Button onClick={() => setEditing({ ...blank })}>+ {page.addChannel}</Button>}
+      />
 
       {credentials && (
         <div className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-          <div className="mb-1">کلید ورودی (فقط یک بار نمایش داده می‌شود):</div>
+          <div className="mb-1">{page.inboundKey}</div>
           <code dir="ltr" className="break-all">{credentials.secret}</code>
-          <div className="mt-2 mb-1">آدرس ورودی:</div>
+          <div className="mt-2 mb-1">{page.inboundUrl}</div>
           <code dir="ltr" className="break-all">{credentials.url}</code>
+          <FieldHelp>{page.secretHelp}</FieldHelp>
           <div className="mt-2">
             <Button
               size="sm"
@@ -158,7 +163,7 @@ export function ChannelsSettingsPage() {
                 )
               }
             >
-              کپی دستور curl
+              {page.copyCurl}
             </Button>
           </div>
         </div>
@@ -170,9 +175,12 @@ export function ChannelsSettingsPage() {
           <Spinner />
         </div>
       ) : items.length === 0 ? (
-        <Card>
-          <Empty>کانالی ثبت نشده است</Empty>
-        </Card>
+        <EmptyState
+          title={page.empty.title}
+          body={page.empty.body}
+          cta={{ label: page.empty.cta, onClick: () => setEditing({ ...blank }) }}
+          icon="🔀"
+        />
       ) : (
         <div className="space-y-2">
           {items.map((ch) => (
@@ -183,11 +191,11 @@ export function ChannelsSettingsPage() {
                   <span className="chip bg-slate-100 text-[10px] text-slate-500">{ch.kind}</span>
                 </div>
                 <div className="truncate text-[11px] text-slate-400" dir="ltr">
-                  {ch.outbound_url || "بدون آدرس بازگشت"}
+                  {ch.outbound_url || page.noOutbound}
                 </div>
               </div>
               <span className={cn("chip", ch.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-                {ch.is_active ? "فعال" : "غیرفعال"}
+                {ch.is_active ? page.active : page.inactive}
               </span>
               <Button size="sm" variant="ghost" onClick={() => showCurl(ch)}>
                 curl
@@ -196,10 +204,10 @@ export function ChannelsSettingsPage() {
                 {t("test")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setInspectFor(ch)}>
-                بازرس
+                {page.inspector}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => rotate.mutate(ch.id)}>
-                چرخش کلید
+                {page.rotateSecret}
               </Button>
               <Button
                 size="sm"
@@ -228,7 +236,7 @@ export function ChannelsSettingsPage() {
       <Modal
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.id ? t("edit") : "کانال جدید"}
+        title={editing?.id ? t("edit") : page.addChannel}
         footer={
           <>
             <Button variant="ghost" onClick={() => setEditing(null)}>
@@ -243,11 +251,12 @@ export function ChannelsSettingsPage() {
         {editing && (
           <div className="space-y-3">
             <div>
-              <Label>نام</Label>
+              <Label>{t("name")}</Label>
               <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              <FieldHelp>{page.nameHelp}</FieldHelp>
             </div>
             <div>
-              <Label>نوع</Label>
+              <Label>{page.kind}</Label>
               <Select value={editing.kind} onChange={(e) => setEditing({ ...editing, kind: e.target.value })}>
                 <option value="webhook">webhook</option>
                 <option value="telegram">telegram</option>
@@ -256,32 +265,34 @@ export function ChannelsSettingsPage() {
               </Select>
             </div>
             <div>
-              <Label>آدرس بازگشت (اختیاری)</Label>
+              <Label>{page.outboundLabel}</Label>
               <Input
                 dir="ltr"
                 value={editing.outbound_url}
                 onChange={(e) => setEditing({ ...editing, outbound_url: e.target.value })}
                 placeholder="https://example.com/hooks/evechat"
               />
+              <FieldHelp>{page.outboundHelp}</FieldHelp>
             </div>
             <div>
-              <Label>نگاشت (JSONPath)</Label>
+              <Label>{page.mappingLabel}</Label>
               <Textarea
                 dir="ltr"
                 className="min-h-[140px] font-mono text-xs"
                 value={editing.mapping}
                 onChange={(e) => setEditing({ ...editing, mapping: e.target.value })}
               />
+              <FieldHelp>{page.mappingHelp}</FieldHelp>
             </div>
-            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="فعال" />
+            <Switch checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label={page.active} />
           </div>
         )}
       </Modal>
 
-      <Modal open={!!inspectFor} onClose={() => setInspectFor(null)} title="بازرس وبهوک">
+      <Modal open={!!inspectFor} onClose={() => setInspectFor(null)} title={page.inspectorTitle}>
         <div className="space-y-3">
           <div>
-            <Label>بدنه‌ی نمونه برای پیش‌نمایش نگاشت</Label>
+            <Label>{page.sampleBody}</Label>
             <Textarea
               dir="ltr"
               className="min-h-[80px] font-mono text-xs"
@@ -289,27 +300,29 @@ export function ChannelsSettingsPage() {
               onChange={(e) => setSample(e.target.value)}
             />
             <Button size="sm" className="mt-2" onClick={() => inspectFor && runPreview(inspectFor)}>
-              پیش‌نمایش نگاشت
+              {page.previewMapping}
             </Button>
+            <FieldHelp>{page.mappingHelp}</FieldHelp>
             {preview && (
               <pre dir="ltr" className="mt-2 max-h-40 overflow-auto rounded-xl bg-slate-900 p-3 text-[10px] text-slate-200">
                 {preview}
               </pre>
             )}
           </div>
+          <FieldHelp>{page.trafficHelp}</FieldHelp>
           {inbox.isLoading ? (
             <Spinner />
           ) : (inbox.data?.data || []).length === 0 ? (
-            <Empty>درخواستی ثبت نشده است</Empty>
+            <p className="py-4 text-center text-xs text-slate-400">{page.noRequests}</p>
           ) : (
             <div className="max-h-72 overflow-y-auto">
               <table className="w-full text-[11px]">
                 <thead className="text-slate-400">
                   <tr>
-                    <th className="py-1 text-start">زمان</th>
-                    <th className="py-1 text-start">وضعیت</th>
-                    <th className="py-1 text-start">IP</th>
-                    <th className="py-1 text-start">خطا</th>
+                    <th className="py-1 text-start">{page.time}</th>
+                    <th className="py-1 text-start">{page.status}</th>
+                    <th className="py-1 text-start">{page.ip}</th>
+                    <th className="py-1 text-start">{page.error}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -341,7 +354,7 @@ export function ChannelsSettingsPage() {
         </div>
       </Modal>
 
-      <Modal open={!!curl} onClose={() => setCurl("")} title="دستور curl">
+      <Modal open={!!curl} onClose={() => setCurl("")} title={page.curlTitle}>
         <pre dir="ltr" className="overflow-x-auto rounded-xl bg-slate-900 p-3 text-[11px] text-slate-200">
           {curl}
         </pre>

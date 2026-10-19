@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, Spinner } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
 import { cn } from "@/lib/utils";
+
+const page = copy.pages.health;
 
 interface CheckResult {
   id: string;
@@ -30,17 +33,22 @@ export function DiagnosticsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-bold">سلامت سیستم</h1>
-        {report.data && (
-          <span className="chip bg-slate-100 text-slate-600">
-            {report.data.summary.ok} موفق · {report.data.summary.warn} هشدار · {report.data.summary.fail} خطا
-          </span>
-        )}
-        <Button className="ms-auto" variant="ghost" onClick={() => report.refetch()}>
-          بررسی مجدد
-        </Button>
-      </div>
+      <PageHeader
+        title={page.title}
+        intro={page.intro}
+        actions={
+          <>
+            {report.data && (
+              <span className="chip bg-slate-100 text-slate-600">
+                {report.data.summary.ok} {page.ok} · {report.data.summary.warn} {page.warn} · {report.data.summary.fail} {page.fail}
+              </span>
+            )}
+            <Button variant="ghost" onClick={() => report.refetch()}>
+              {page.recheck}
+            </Button>
+          </>
+        }
+      />
 
       {report.isLoading ? (
         <div className="flex justify-center py-10">
@@ -51,10 +59,10 @@ export function DiagnosticsPage() {
           <table className="w-full text-xs">
             <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-start font-medium">بررسی</th>
-                <th className="px-4 py-3 text-start font-medium">وضعیت</th>
-                <th className="px-4 py-3 text-start font-medium">پیام</th>
-                <th className="px-4 py-3 text-start font-medium">راه‌حل</th>
+                <th className="px-4 py-3 text-start font-medium">{page.check}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.status}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.message}</th>
+                <th className="px-4 py-3 text-start font-medium">{page.fix}</th>
               </tr>
             </thead>
             <tbody>
@@ -74,7 +82,7 @@ export function DiagnosticsPage() {
                           : "bg-amber-50 text-amber-700"
                       )}
                     >
-                      {c.result.ok ? "✓ سالم" : c.level === 0 ? "✗ خطا" : "! هشدار"}
+                      {c.result.ok ? `✓ ${page.ok}` : c.level === 0 ? `✗ ${page.fail}` : `! ${page.warn}`}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">
@@ -82,7 +90,7 @@ export function DiagnosticsPage() {
                     {c.result.detail && <div className="text-[10px] text-slate-400" dir="ltr">{c.result.detail}</div>}
                   </td>
                   <td className="px-4 py-3 text-[11px] text-slate-500" dir="ltr">
-                    {c.result.fix || "—"}
+                    {c.result.fix || copy.misc.dash}
                   </td>
                 </tr>
               ))}
@@ -92,14 +100,14 @@ export function DiagnosticsPage() {
       )}
 
       <Card className="mt-4">
-        <CardTitle>دستورهای مفید</CardTitle>
+        <CardTitle>{page.usefulCommands}</CardTitle>
         <pre dir="ltr" className="overflow-x-auto rounded-xl bg-slate-900 p-3 text-[11px] text-slate-200">
 {`evechat doctor --verbose
 evechat doctor --json | jq '.summary'
 evechat doctor --fix`}
         </pre>
         <p className="mt-2 text-[11px] text-slate-400">
-          نسخه: {report.data?.version} · Go {report.data?.go_version} · {report.data?.duration}
+          {page.version}: {report.data?.version} · Go {report.data?.go_version} · {report.data?.duration}
         </p>
       </Card>
     </div>

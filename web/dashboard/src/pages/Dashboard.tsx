@@ -8,6 +8,7 @@ import { Card, Spinner } from "@/components/ui/card";
 import { EmptyState } from "@/components/EmptyState";
 import { HelpTip } from "@/components/HelpTip";
 import { PageHeader } from "@/components/PageHeader";
+import { QuickStartCard } from "@/components/QuickStartCard";
 import { formatDuration, formatNumber } from "@/lib/utils";
 import { formatJalaliLong } from "@/lib/jalali";
 
@@ -98,6 +99,12 @@ export function DashboardPage() {
         title={page.title}
         intro={page.intro}
         actions={<span className="text-xs text-slate-400">{page.last14Days} · {formatJalaliLong(new Date())}</span>}
+      />
+
+      <QuickStartCard
+        uniqueVisitors={s?.unique_visitors || 0}
+        conversations={s?.total_conversations || 0}
+        messages={s?.messages || 0}
       />
 
       {overview.isLoading ? (

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Agent, CannedResponse, Conversation, Message } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { copy } from "@/lib/copy.fa";
 import { cn, formatJalaliLong, formatJalaliTime, initials, statusColor, statusLabel } from "@/lib/utils";
 import { Composer } from "./Composer";
 import { Button } from "./ui/button";
 import { Select } from "./ui/input";
-import { Empty, Spinner } from "./ui/card";
+import { Spinner } from "./ui/card";
 
 function dayKey(msg: Message): string {
   const d = new Date(msg.created_at);
@@ -72,7 +73,7 @@ export function ChatPanel({
     );
   }
 
-  const visitorName = conversation.visitor?.name || conversation.visitor?.phone || "کاربر ناشناس";
+  const visitorName = conversation.visitor?.name || conversation.visitor?.phone || copy.pages.inbox.unknownVisitor;
   const isClosed = conversation.status === "resolved" || conversation.status === "closed";
 
   return (
@@ -82,7 +83,7 @@ export function ChatPanel({
           <button
             type="button"
             onClick={onBack}
-            aria-label="بازگشت به فهرست"
+            aria-label={copy.pages.inbox.backToList}
             className="rounded-lg border border-slate-200 px-2 py-1 text-sm md:hidden"
           >
             ›
@@ -149,7 +150,9 @@ export function ChatPanel({
             <Spinner />
           </div>
         )}
-        {!loading && messages.length === 0 && <Empty>پیامی وجود ندارد</Empty>}
+        {!loading && messages.length === 0 && (
+          <p className="py-6 text-center text-xs text-slate-400">{copy.pages.inbox.noMessages}</p>
+        )}
         {groups.map((g) => (
           <div key={g.key}>
             <div className="my-3 flex items-center gap-2">
@@ -175,7 +178,7 @@ export function ChatPanel({
                     m.is_internal && "border border-amber-300 bg-amber-50 text-amber-900"
                   )}
                 >
-                  {m.is_internal && <div className="mb-1 text-[10px] font-bold text-amber-700">یادداشت داخلی</div>}
+                  {m.is_internal && <div className="mb-1 text-[10px] font-bold text-amber-700">{copy.pages.inbox.internalNoteShort}</div>}
                   <div className="whitespace-pre-wrap break-words">{m.content}</div>
                   <div className={cn("mt-1 flex gap-1 text-[10px]", m.sender_type === "agent" ? "text-white/70" : "text-slate-400")}>
                     <span>{m.sender_name || (m.sender_type === "visitor" ? visitorName : "")}</span>
