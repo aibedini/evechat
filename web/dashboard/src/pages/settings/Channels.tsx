@@ -136,6 +136,7 @@ export function ChannelsSettingsPage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="mb-4 flex items-center gap-3">
         <h1 className="text-lg font-bold">کانال‌ها</h1>
+        <p className="text-xs text-slate-500">راه‌هایی که مشتری با شما حرف می‌زند (پیامک، پیام‌رسان‌ها)</p>
         <Button className="ms-auto" onClick={() => setEditing({ ...blank })}>
           + کانال
         </Button>

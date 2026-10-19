@@ -101,3 +101,17 @@ curl -X POST http://127.0.0.1:3000/api/channels/ch_xxx/inbound \
 ارسال پیام **کارشناس** به سامانه‌ی بیرونی هنوز پیاده نشده است؛ خروجی فعلی
 رسیدِ `message.received` است. برای این کار باید کانال به لایه‌ی notification
 وصل شود (پیگیری در TASK 36 phase 2).
+
+## اختلاف مسیرهای پلن ۳۶.۳ با router
+
+| مسیر پلن | وضعیت | تصمیم |
+|---|---|---|
+| `POST /channels/:id/inbound` | پیاده‌شده (id-based) | slug مبهم است؛ id می‌ماند |
+| `POST /channels/:id/status` | **پیاده نشد** | فعلاً وضعیت تحویل از پاسخ خروجی ثبت می‌شود؛ افزودن آن نیاز به جدول delivery دارد |
+| `POST /channels/:id/heartbeat` | **پیاده نشد** | سلامت کانال از آخرین inbound/outbound محاسبه می‌شود |
+| `GET /channels` و CRUD | پیاده‌شده | — |
+| `POST /channels/:id/test` | پیاده‌شده | — |
+| `POST /channels/:id/rotate-secret` | پیاده‌شده | — |
+| `GET /channels/:id/inbox` | پیاده‌شده (فهرست ورودی) | — |
+| `POST /webhooks/inbox/:id/replay` | **پیاده نشد** | بازپخش نیاز به بازسازی امضا و idempotency دارد |
+| بازرس `/demo/webhooks` | **پیاده نشد** | خارج از دامنه‌ی v1.2.1 |

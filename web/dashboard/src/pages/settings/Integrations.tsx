@@ -113,7 +113,8 @@ export function IntegrationsSettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <h1 className="mb-4 text-lg font-bold">{t("integrations")}</h1>
+      <h1 className="text-lg font-bold">{t("integrations")}</h1>
+      <p className="mb-4 text-xs text-slate-500">سرویس‌های آماده‌ای که به EveChat وصل می‌شوند</p>
       {result && <div className="mb-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">{result}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">

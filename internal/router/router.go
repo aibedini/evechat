@@ -246,6 +246,7 @@ func New(d Deps) http.Handler {
 		r.Delete("/knowledge-base/{id}", wrap(d.H.DeleteKB))
 
 		r.Get("/webhooks", wrap(d.H.ListWebhooks))
+		r.Get("/webhooks/events", wrap(d.H.ListWebhookEvents))
 		r.Post("/webhooks", wrap(d.H.CreateWebhook))
 		r.Get("/webhooks/{id}", wrap(d.H.GetWebhook))
 		r.Put("/webhooks/{id}", wrap(d.H.UpdateWebhook))

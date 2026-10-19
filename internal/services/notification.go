@@ -11,13 +11,37 @@ import (
 
 // Notification event names.
 const (
-	EventChatStarted     = "chat.started"
-	EventMessageReceived = "message.received"
-	EventChatAssigned    = "chat.assigned"
-	EventChatResolved    = "chat.resolved"
-	EventTicketCreated   = "ticket.created"
-	EventCSATReceived    = "csat.received"
+	EventChatStarted       = "chat.started"
+	EventMessageReceived   = "message.received"
+	EventChatAssigned      = "chat.assigned"
+	EventChatResolved      = "chat.resolved"
+	EventTicketCreated     = "ticket.created"
+	EventCSATReceived      = "csat.received"
+	EventMessageSent       = "message.sent"
+	EventVisitorIdentified = "visitor.identified"
+	EventChannelFailed     = "channel.failed"
 )
+
+// WebhookEvent describes one subscribable webhook event.
+type WebhookEvent struct {
+	Name    string `json:"name"`
+	LabelFA string `json:"label_fa"`
+}
+
+// WebhookEvents is the single source of truth for the event catalogue.
+func WebhookEvents() []WebhookEvent {
+	return []WebhookEvent{
+		{EventChatStarted, "گفتگوی جدید باز شد"},
+		{EventMessageReceived, "پیام مشتری رسید"},
+		{EventMessageSent, "پاسخ پشتیبان ارسال شد"},
+		{EventChatAssigned, "گفتگو به پشتیبان ارجاع شد"},
+		{EventChatResolved, "گفتگو بسته شد"},
+		{EventTicketCreated, "تیکت ساخته شد"},
+		{EventCSATReceived, "نظرسنجی رضایت ثبت شد"},
+		{EventVisitorIdentified, "هویت بازدیدکننده مشخص شد"},
+		{EventChannelFailed, "ارسال از یک کانال شکست خورد"},
+	}
+}
 
 // Event is one notification. Data is channel-specific but always contains the
 // plain-text content the channel needs.

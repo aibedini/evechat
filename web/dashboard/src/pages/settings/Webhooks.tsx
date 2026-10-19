@@ -8,7 +8,22 @@ import { Input, Label, Switch } from "@/components/ui/input";
 import { Card, Empty, Modal, Spinner } from "@/components/ui/card";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const EVENTS = ["chat.started", "message.received", "chat.assigned", "chat.resolved", "ticket.created", "csat.received"];
+const EVENTS = [
+  "chat.started", "message.received", "message.sent", "chat.assigned", "chat.resolved",
+  "ticket.created", "csat.received", "visitor.identified", "channel.failed",
+];
+const EVENT_LABELS: Record<string, string> = {
+  "chat.started": "گفتگوی جدید",
+  "message.received": "پیام مشتری",
+  "message.sent": "پاسخ پشتیبان",
+  "chat.assigned": "ارجاع گفتگو",
+  "chat.resolved": "بسته شدن گفتگو",
+  "ticket.created": "تیکت جدید",
+  "csat.received": "نظرسنجی رضایت",
+  "visitor.identified": "شناسایی بازدیدکننده",
+  "channel.failed": "خطای کانال",
+};
+const DOCS_URL = "https://github.com/aibedini/evechat/blob/main/docs/WEBHOOKS.fa.md";
 
 interface HookForm {
   id: string;
@@ -77,6 +92,7 @@ export function WebhooksSettingsPage() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="mb-4 flex items-center gap-3">
         <h1 className="text-lg font-bold">{t("webhooks")}</h1>
+        <p className="mb-4 text-xs text-slate-500">خبر دادن رویدادها به نرم‌افزارهای دیگر</p>
         <Button className="ms-auto" onClick={() => setEditing({ ...blank })}>
           + وب‌هوک
         </Button>
@@ -95,7 +111,33 @@ export function WebhooksSettingsPage() {
         </div>
       ) : items.length === 0 ? (
         <Card>
-          <Empty>وب‌هوکی ثبت نشده است</Empty>
+          <div className="p-6">
+  <h3 className="mb-2 text-sm font-bold">هنوز وب‌هوکی نساخته‌اید</h3>
+  <p className="mb-4 max-w-lg text-xs leading-6 text-slate-500">
+    وب‌هوک یعنی EveChat به‌جای اینکه شما مدام بپرسید، خودش وقتی اتفاقی افتاد (مثلاً گفتگوی جدید) به آدرسی که می‌دهید خبر می‌دهد.
+  </p>
+  <div className="grid gap-3 sm:grid-cols-3">
+    <button className="rounded-xl border border-slate-200 p-3 text-start hover:border-brand-400" onClick={() => setEditing({ ...blank, description: "اعلان گفتگوی جدید", events: ["chat.started", "message.received"] })}>
+      <div className="text-xs font-bold">اعلان گفتگوی جدید</div>
+      <div className="mt-1 text-[11px] text-slate-500">chat.started · message.received</div>
+    </button>
+    <button className="rounded-xl border border-slate-200 p-3 text-start hover:border-brand-400" onClick={() => setEditing({ ...blank, description: "ساخت تیکت در سیستم من", events: ["ticket.created", "chat.resolved"] })}>
+      <div className="text-xs font-bold">ساخت تیکت در سیستم من</div>
+      <div className="mt-1 text-[11px] text-slate-500">ticket.created · chat.resolved</div>
+    </button>
+    <button className="rounded-xl border border-slate-200 p-3 text-start hover:border-brand-400" onClick={() => setEditing({ ...blank, description: "گزارش رضایت", events: ["csat.received", "chat.resolved"] })}>
+      <div className="text-xs font-bold">گزارش رضایت</div>
+      <div className="mt-1 text-[11px] text-slate-500">csat.received · chat.resolved</div>
+    </button>
+  </div>
+  <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs">
+    می‌خواهید به اپ پیامک اندروید یا هر پیام‌رسان وصل شوید؟ از <a className="text-brand-600 underline" href="/settings/channels">کانال‌ها</a> استفاده کنید.
+  </div>
+  <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+    <a className="text-brand-600 underline" href={DOCS_URL} target="_blank" rel="noreferrer">راهنمای کامل وب‌هوک</a>
+    <a className="text-brand-600 underline" href="https://github.com/aibedini/evechat/blob/main/docs/CONNECTING.fa.md" target="_blank" rel="noreferrer">کدام را لازم دارم؟</a>
+  </div>
+</div>
         </Card>
       ) : (
         <div className="space-y-2">

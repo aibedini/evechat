@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+
+	"github.com/evechat/evechat/internal/services"
 	"strings"
 
 	"github.com/evechat/evechat/internal/apierr"
@@ -264,4 +266,9 @@ func randomHex(n int) string {
 		return id.New() + id.New()
 	}
 	return hex.EncodeToString(b)
+}
+
+// ListWebhookEvents returns the subscribable event catalogue.
+func (h *Handlers) ListWebhookEvents(w http.ResponseWriter, r *http.Request) error {
+	return ok(w, map[string]any{"events": services.WebhookEvents()})
 }
