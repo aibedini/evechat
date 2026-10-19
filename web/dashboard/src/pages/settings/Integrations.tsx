@@ -6,7 +6,6 @@ import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardTitle, Spinner } from "@/components/ui/card";
-import { Callout } from "@/components/Callout";
 import { PageHeader } from "@/components/PageHeader";
 
 const page = copy.pages.integrations;
@@ -133,9 +132,6 @@ export function IntegrationsSettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <PageHeader title={page.title} intro={page.intro} guide={page.guide} />
-      <div className="mb-4">
-        <Callout tone="info">{page.whichOne}</Callout>
-      </div>
       {result && <div className="mb-3 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">{result}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">

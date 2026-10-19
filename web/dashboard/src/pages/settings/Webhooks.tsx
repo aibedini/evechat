@@ -8,7 +8,6 @@ import { copy } from "@/lib/copy.fa";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Switch } from "@/components/ui/input";
 import { Card, Modal, Spinner } from "@/components/ui/card";
-import { Callout } from "@/components/Callout";
 import { EmptyState } from "@/components/EmptyState";
 import { FieldHelp } from "@/components/FieldHelp";
 import { PageHeader } from "@/components/PageHeader";
@@ -107,10 +106,6 @@ export function WebhooksSettingsPage() {
         guide={page.guide}
         actions={<Button onClick={() => setEditing({ ...blank })}>+ {page.newWebhook}</Button>}
       />
-
-      <div className="mb-4">
-        <Callout tone="info">{page.callout}</Callout>
-      </div>
 
       {createdSecret && (
         <div className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">

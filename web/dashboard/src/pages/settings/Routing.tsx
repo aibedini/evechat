@@ -8,7 +8,6 @@ import { useAgents } from "@/hooks/useConversations";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Switch, Textarea } from "@/components/ui/input";
 import { Card, Modal, Spinner } from "@/components/ui/card";
-import { Callout } from "@/components/Callout";
 import { EmptyState } from "@/components/EmptyState";
 import { HelpTip } from "@/components/HelpTip";
 import { PageHeader } from "@/components/PageHeader";
@@ -187,10 +186,6 @@ export function RoutingSettingsPage() {
           </>
         }
       />
-
-      <div className="mb-4">
-        <Callout tone="info">{page.callout}</Callout>
-      </div>
 
       <Card className="p-0">
         {rules.isLoading ? (
