@@ -14,6 +14,8 @@ Versioning: [SemVer](https://semver.org/).
 
 ## [1.2.4] - 2026-10-19
 
+> **هشدار امنیتی:** رفع جعل IP؛ نسخه‌های 1.2.2 و 1.2.3 آسیب‌پذیرند و ارتقا توصیه می‌شود.
+
 ### Added
 - **Proxy trust is explicit.** `server.trusted_proxies` is a CIDR list
   (loopback by default). Forwarding headers are read only when the socket peer
