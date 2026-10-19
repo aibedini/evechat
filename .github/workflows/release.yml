@@ -61,7 +61,8 @@ jobs:
           echo "widget gzip: ${size} bytes (budget ${budget})"
           test "$size" -le "$budget"
 
-      - name: resolve version        id: v
+      - name: resolve version
+        id: v
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
