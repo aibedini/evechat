@@ -154,6 +154,15 @@ port_taken() {
       return 0
     fi
   fi
+  # Minimal environments may have neither ss nor lsof.
+  local hex
+  hex="$(printf '%04X' "$port")"
+  if [ -r /proc/net/tcp ] && awk -v p=":${hex}" '$2 ~ p"$" && $4 == "0A" {found=1} END {exit found ? 0 : 1}' /proc/net/tcp 2>/dev/null; then
+    return 0
+  fi
+  if [ -r /proc/net/tcp6 ] && awk -v p=":${hex}" '$2 ~ p"$" && $4 == "0A" {found=1} END {exit found ? 0 : 1}' /proc/net/tcp6 2>/dev/null; then
+    return 0
+  fi
   if command -v nc >/dev/null 2>&1; then
     nc -z 127.0.0.1 "${port}" >/dev/null 2>&1 && return 0
   fi
