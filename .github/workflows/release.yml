@@ -78,9 +78,9 @@ jobs:
           mkdir -p dist
           V="${VERSION#v}"
           build() {
-            goos="$1"; goarch="$2"; label="$3"; suffix="$4"; extra="${5:-}"
+            goos="$1"; goarch="$2"; label="$3"; suffix="$4"; goarm="${5:-}"
             name="evechat_${V}_${goos}_${label}${suffix}"
-            if [ -n "$extra" ]; then export "$extra"; fi
+            if [ -n "$goarm" ]; then export GOARM="$goarm"; fi
             CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
               go build -trimpath \
               -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -88,7 +88,7 @@ jobs:
             mkdir -p "stage/${name}"
             cp "dist/${name}" evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
             cp -r deploy "stage/${name}/deploy"
-            if [ -n "$extra" ]; then unset "${extra%%=*}"; fi
+            if [ -n "$goarm" ]; then unset GOARM; fi
             if [ "$goos" = "windows" ]; then
               (cd stage && zip -qr "../dist/${name}.zip" "${name}" && rm -rf "${name}")
             else
@@ -98,11 +98,11 @@ jobs:
           }
           build linux amd64 amd64 ""
           build linux arm64 arm64 ""
-          build linux arm armv7 "" "GOARM=7"
+          build linux arm armv7 "" "7"
           build darwin amd64 amd64 ""
           build darwin arm64 arm64 ""
           build windows amd64 amd64 ".exe"
-          (cd dist && sha256sum * > checksums.txt)
+          (cd dist && sha256sum ./* > checksums.txt)
           cp embed/widget/widget.js dist/widget.js
           ls -lh dist
 
@@ -156,7 +156,7 @@ jobs:
           docker buildx imagetools inspect "ghcr.io/aibedini/evechat:${ver}" --format '{{json .Manifest}}' > manifest.json
           node -e '
             const m = require("./manifest.json");
-            const platforms = (m.manifests || []).map((x) => `${x.platform.os}/${x.platform.architecture}`);
+            const platforms = (m.manifests || []).map((x) => x.platform.os + "/" + x.platform.architecture);
             console.log("published platforms:", platforms.join(", "));
             for (const want of ["linux/amd64", "linux/arm64"]) {
               if (!platforms.includes(want)) {
