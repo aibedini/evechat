@@ -66,3 +66,33 @@ export function solvePoW(challenge: string, difficulty: number): string {
   }
   return "";
 }
+
+export interface PoWOptions {
+  /** Maximum continuous work before yielding to the main thread. */
+  chunkMs?: number;
+  /** Overall budget for the challenge. */
+  timeoutMs?: number;
+}
+
+/**
+ * Cooperative version of solvePoW. The search yields to the browser every
+ * chunkMs so the host page can paint and handle input, and it fails softly when
+ * the budget is exhausted instead of freezing the tab.
+ */
+export async function solvePoWAsync(challenge: string, difficulty: number, opts: PoWOptions = {}): Promise<string> {
+  if (difficulty <= 0) return "";
+  const chunkMs = Math.max(2, opts.chunkMs ?? 8);
+  const deadline = Date.now() + (opts.timeoutMs ?? 20_000);
+  let i = 0;
+  while (i < 5_000_000) {
+    const started = Date.now();
+    while (i < 5_000_000 && Date.now() - started < chunkMs) {
+      const nonce = i.toString(36);
+      if (leadingZeroBits(sha256Hex(challenge + nonce)) >= difficulty) return nonce;
+      i++;
+    }
+    if (Date.now() > deadline) throw new Error("pow timeout");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  throw new Error("pow exhausted");
+}

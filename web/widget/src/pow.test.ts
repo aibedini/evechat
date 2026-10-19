@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { solvePoW } from "./pow";
+import { solvePoW, solvePoWAsync } from "./pow";
 
 function leadingZeroBits(hex: string): number {
   let bits = 0;
@@ -39,5 +39,16 @@ describe("proof of work", () => {
     const challenge = "9f8e7d6c5b4a39281706f5e4d3c2b1a0";
     const nonce = solvePoW(challenge, 8);
     expect(verify(challenge, nonce, 8)).toBe(true);
+  });
+
+  it("solves cooperatively with the same independent verifier", async () => {
+    const challenge = "async-challenge-0123456789abcdef";
+    const nonce = await solvePoWAsync(challenge, 8, { chunkMs: 2, timeoutMs: 5000 });
+    expect(nonce).not.toBe("");
+    expect(verify(challenge, nonce, 8)).toBe(true);
+  });
+
+  it("fails softly when the budget is exhausted", async () => {
+    await expect(solvePoWAsync("too-hard", 32, { chunkMs: 1, timeoutMs: 5 })).rejects.toThrow("pow timeout");
   });
 });

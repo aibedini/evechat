@@ -15,6 +15,15 @@ mocked.
 | 5 | Typing reaches the panel and expires server-side | BUG-3 typing + TTL |
 | 6 | Claiming activates and owns the conversation | BUG-2 |
 | 7 | The widget works with localStorage/IndexedDB blocked | BUG-0 |
+| 8 | The same conversation id survives a reload | BUG-1 resume |
+| 9 | A live message patches the open panel without a detail refetch | BUG-4 |
+
+`channels.spec.ts` covers the SMTP status card and a real outbound channel
+delivery: it creates a channel with `X-API-Key`, runs «ارسال آزمایشی» against a
+loopback receiver, asserts the exact header, checks the API mask (`••••••`), and
+expands the `OUTBOUND TEST` inspector row. `00-pow.spec.ts` runs first (before
+the adaptive difficulty climbs) and asserts the cooperative solver keeps every
+main-thread task below 50ms.
 
 `responsive.spec.ts` runs 8 devices x 2 orientations x 2 themes = 32
 combinations with 8 assertions each (panel fits the viewport, composer above the
@@ -26,8 +35,11 @@ plus a dashboard drawer test. See `docs/RESPONSIVE.md`.
 ```bash
 # terminal 1: a throwaway instance
 evechat setup --non-interactive --admin-password 'Passw0rd123!' --admin-email admin@evechat.local
-EVECHAT_SECURITY__POW_DIFFICULTY=0 \
-EVECHAT_RATELIMIT__WIDGET_SESSION_PER_MIN=600 evechat serve
+EVECHAT_SECURITY__POW_DIFFICULTY=14 \
+EVECHAT_SECURITY__OUTBOUND_ALLOW_HOSTS=127.0.0.1 \
+EVECHAT_RATELIMIT__WIDGET_SESSION_PER_MIN=600 \
+EVECHAT_RATELIMIT__MESSAGE_PER_MIN=600 \
+EVECHAT_RATELIMIT__LOGIN_PER_MIN=600 evechat serve
 
 # terminal 2
 cd web/e2e
@@ -36,8 +48,9 @@ npx playwright install chromium
 EVECHAT_BASE=http://127.0.0.1:3000 npx playwright test
 ```
 
-Disable PoW for the suite: the widget solves the challenge synchronously, and the
-adaptive difficulty makes a 20-second boot timeout flaky on slower machines.
+PoW stays enabled at a low difficulty (14) so the cooperative solver is
+exercised; `00-pow.spec.ts` asserts no main-thread task exceeds 50ms. The widget
+solves the challenge only on the first open, not while the host page loads.
 `responsive.spec.ts` closes its per-test browser context so 32 viewports do not
 leave SSE/WebSocket sockets open.
 
@@ -68,7 +81,7 @@ wrong token (Persian error), the correct token, 375px and 1440px layouts with
 ## CI
 
 `.github/workflows/e2e.yml` job `behavior` builds the binary, starts an
-instance on port 3212, and runs the behaviour and responsive specs. The
-`wizard` job starts a second, unconfigured instance on port 3214 and runs
-`wizard.spec.ts` with `EVECHAT_WIZARD=1`. A red run fails the workflow, so the
-pull request cannot merge with a broken behaviour.
+instance on port 3212, and runs the behaviour, channel, PoW and responsive
+specs. The `wizard` job starts a second, unconfigured instance on port 3214 and
+runs `wizard.spec.ts` with `EVECHAT_WIZARD=1`. A red run fails the workflow, so
+the pull request cannot merge with a broken behaviour.

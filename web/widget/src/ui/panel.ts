@@ -206,18 +206,33 @@ export class WidgetUI {
     );
 
     const online = this.chat.widgetConfig ? this.chat.widgetConfig.online : true;
+    const sessionError = !state.ready && state.error === "session";
     this.statusEl.textContent = "";
-    this.statusEl.appendChild(
-      document.createTextNode(
-        state.agentName ? state.agentName : online ? strings.title : state.connection === "open" ? strings.title : strings.connecting
-      )
-    );
+    if (!state.ready) {
+      this.statusEl.appendChild(
+        document.createTextNode(sessionError ? strings.sessionFailed : strings.preparing)
+      );
+    } else {
+      this.statusEl.appendChild(
+        document.createTextNode(
+          state.agentName ? state.agentName : online ? strings.title : state.connection === "open" ? strings.title : strings.connecting
+        )
+      );
+    }
 
     const degraded = state.connection === "degraded" || state.connection === "reconnecting";
     const offline = state.connection === "offline";
-    const bannerText = degraded ? strings.degraded : offline ? strings.offline : "";
+    const bannerText = sessionError
+      ? strings.sessionFailed + " — " + strings.retry
+      : degraded
+        ? strings.degraded
+        : offline
+          ? strings.offline
+          : "";
     this.bannerEl.textContent = bannerText;
     this.bannerEl.classList.toggle("on", !!bannerText);
+    this.bannerEl.onclick = sessionError ? () => this.chat.retrySession() : null;
+    this.bannerEl.style.cursor = sessionError ? "pointer" : "";
 
     renderMessages(this.messagesEl, state.messages, this.opts.locale, (id) => this.chat.retry(id));
     renderTyping(this.typingEl, state.typing, this.opts.locale);

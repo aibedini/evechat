@@ -1,5 +1,5 @@
 import { Outbox, clientMessageID } from "./queue";
-import { solvePoW } from "./pow";
+import { solvePoWAsync } from "./pow";
 import { TransportManager } from "./transport/transport";
 import { WsChannel } from "./transport/ws";
 import { SseChannel } from "./transport/sse";
@@ -24,6 +24,7 @@ import type {
 
 export interface ChatState {
   ready: boolean;
+  preparing: boolean;
   open: boolean;
   connection: TransportState;
   messages: Message[];
@@ -32,6 +33,7 @@ export interface ChatState {
   agentName: string;
   csatPending: boolean;
   error: string;
+  conversationId: string;
 }
 
 type Listener = (state: ChatState) => void;
@@ -40,6 +42,7 @@ type EventName = "ready" | "message" | "open" | "close" | "connection" | "csat";
 export class Chat {
   state: ChatState = {
     ready: false,
+    preparing: false,
     open: false,
     connection: "offline",
     messages: [],
@@ -48,6 +51,7 @@ export class Chat {
     agentName: "",
     csatPending: false,
     error: "",
+    conversationId: "",
   };
 
   widgetConfig: WidgetConfig | null = null;
@@ -63,6 +67,7 @@ export class Chat {
   private seen: Record<string, true> = {};
   private pendingStatus: Record<string, Message["status"]> = {};
   private flushTimer: any = 0;
+  private sessionPromise: Promise<void> | null = null;
 
   constructor(private cfg: HostConfig) {
     this.api = (cfg.apiUrl || location.origin).replace(/\/+$/, "");
@@ -76,21 +81,54 @@ export class Chat {
     } catch {
       this.widgetConfig = null;
     }
-    try {
-      await this.startSession();
-    } catch (err) {
-      this.state.error = "session";
-      this.emit();
-      return;
-    }
-    this.state.ready = true;
     this.state.open =
       this.cfg.autoOpen === true || storageGet(openKey(this.cfg.projectKey)) === "1";
-    this.startTransport();
-    this.flushOutbox();
-    this.emitEvent("ready", null);
     this.emit();
-    this.watchVisibility();
+    // The proof-of-work challenge is deferred until the panel is opened (or
+    // the host sends a message), so loading the page never blocks on it.
+    if (this.state.open) void this.ensureSession();
+  }
+
+  /**
+   * Starts the visitor session on demand. The PoW solver yields to the event
+   * loop and the whole step has a soft timeout; the page stays interactive.
+   */
+  async ensureSession(): Promise<void> {
+    if (this.state.ready) return;
+    if (this.sessionPromise) return this.sessionPromise;
+    this.state.preparing = true;
+    this.state.error = "";
+    this.emit();
+    this.sessionPromise = (async () => {
+      try {
+        await this.startSession();
+      } catch (err) {
+        this.state.error = "session";
+        this.state.preparing = false;
+        this.sessionPromise = null;
+        this.emit();
+        return;
+      }
+      this.state.ready = true;
+      this.state.preparing = false;
+      this.state.error = "";
+      this.startTransport();
+      this.flushOutbox();
+      this.emitEvent("ready", null);
+      this.emit();
+      this.watchVisibility();
+      if (this.state.open) {
+        this.sync();
+        this.markRead();
+      }
+    })();
+    return this.sessionPromise;
+  }
+
+  retrySession(): void {
+    this.sessionPromise = null;
+    this.state.error = "";
+    void this.ensureSession();
   }
 
   private async loadConfig(): Promise<void> {
@@ -117,7 +155,7 @@ export class Chat {
         const data = await res.json();
         if (data && data.challenge && data.difficulty > 0) {
           challenge = data.challenge;
-          nonce = solvePoW(challenge, data.difficulty);
+          nonce = await solvePoWAsync(challenge, data.difficulty, { chunkMs: 8, timeoutMs: 15_000 });
         }
       }
     } catch {
@@ -239,6 +277,7 @@ export class Chat {
     if (open) {
       this.sync();
       this.markRead();
+      void this.ensureSession();
     }
   }
 
@@ -256,19 +295,22 @@ export class Chat {
 
   identify(visitor: HostConfig["visitor"]): void {
     this.cfg = { ...this.cfg, visitor: { ...(this.cfg.visitor || {}), ...(visitor || {}) } };
-    this.startSession().catch(() => undefined);
+    if (this.state.ready) this.startSession().catch(() => undefined);
+    else if (this.state.open) void this.ensureSession();
   }
 
   setVariable(key: string, value: any): void {
     const visitor = this.cfg.visitor || {};
     const metadata = { ...(visitor.metadata || {}), [key]: value };
     this.cfg = { ...this.cfg, visitor: { ...visitor, metadata } };
-    this.startSession().catch(() => undefined);
+    if (this.state.ready) this.startSession().catch(() => undefined);
+    else if (this.state.open) void this.ensureSession();
   }
 
   async send(text: string): Promise<void> {
     const content = text.trim();
     if (!content) return;
+    if (!this.state.ready) void this.ensureSession();
     const id = clientMessageID();
     const item: OutboxItem = {
       client_message_id: id,
@@ -546,6 +588,7 @@ export class Chat {
   }
 
   private emit(): void {
+    this.state.conversationId = this.conversationId;
     for (const fn of this.listeners) {
       try {
         fn(this.state);

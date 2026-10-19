@@ -7,6 +7,8 @@ interface Strings {
   send: string;
   typing: string;
   connecting: string;
+  preparing: string;
+  sessionFailed: string;
   reconnecting: string;
   degraded: string;
   offline: string;
@@ -32,6 +34,8 @@ const fa: Strings = {
   send: "ارسال",
   typing: "در حال نوشتن…",
   connecting: "در حال اتصال…",
+  preparing: "در حال آماده‌سازی…",
+  sessionFailed: "آماده‌سازی گفتگو ناموفق بود؛ دوباره تلاش کنید",
   reconnecting: "اتصال دوباره…",
   degraded: "اتصال ضعیف — پیام‌ها پس از برقراری ارسال می‌شوند",
   offline: "قطع شد — پیام‌ها ذخیره می‌شوند",
@@ -58,6 +62,8 @@ const en: Strings = {
   send: "Send",
   typing: "typing…",
   connecting: "Connecting…",
+  preparing: "Preparing…",
+  sessionFailed: "Could not prepare the chat; tap to retry",
   reconnecting: "Reconnecting…",
   degraded: "Weak connection — messages will be sent once connected",
   offline: "Disconnected — messages are saved",
