@@ -32,6 +32,7 @@ hostip="$(hostname -I 2>/dev/null | awk '{print $1}')"
 
 mkdir -p "$DIR/data" "$DIR/data/uploads"
 install -m 0755 "$BIN" "$DIR/evechat"
+[ -f "$HERE/install.sh" ] && install -m 0755 "$HERE/install.sh" "$DIR/install.sh"
 [ -f "$HERE/evechat.example.yaml" ] && install -m 0644 "$HERE/evechat.example.yaml" "$DIR/evechat.example.yaml"
 [ -f "$HERE/deploy/systemd/evechat.service" ] && install -m 0644 "$HERE/deploy/systemd/evechat.service" /tmp/evechat.service.offline || true
 

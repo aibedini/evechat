@@ -9,7 +9,7 @@ curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | 
 ```
 
 The installer opens an English interactive menu when a terminal is available:
-guided install, upgrade, reverse-proxy setup, health and uninstall. It detects
+guided install, upgrade, domain/TLS, reverse-proxy setup, health and uninstall. It detects
 nginx/Apache/Caddy and EVE, keeps every other service untouched, picks a free
 port when 3000 is busy, and writes an nginx vhost only to a file it owns — after
 `nginx -t` passes. On a non-TTY it runs unattended with defaults; add `--yes`
@@ -46,6 +46,27 @@ evechat doctor --verbose          # 29 checks with Persian fix hints
 evechat backup /backup/now --with-uploads
 evechat update --check
 curl -s localhost:3000/metrics | head
+```
+
+## Domain and TLS
+
+The service port is read from `server.port`; you never have to repeat it:
+
+```bash
+sudo evechat domain set chat.example.com          # attach a domain (HTTP vhost)
+sudo evechat domain ssl --email you@example.com   # obtain/renew Let's Encrypt
+sudo evechat domain status                        # domain, port, certificate, health
+```
+
+`domain set` writes a dedicated nginx vhost, moves EveChat to `127.0.0.1`, enables
+`trust_proxy`, and restarts the service. `domain ssl` installs certbot if needed,
+requests the certificate through nginx, rewrites the vhost for HTTPS, and updates
+`server.public_url`. The port is taken from the existing config, so neither
+command needs `--port`. The same operations are available from the installer:
+
+```bash
+sudo install.sh --configure-domain --domain chat.example.com
+sudo install.sh --configure-domain --ssl --email you@example.com
 ```
 
 ## Behind a reverse proxy

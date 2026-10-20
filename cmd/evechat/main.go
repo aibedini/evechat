@@ -15,7 +15,7 @@ import (
 var commandNames = map[string]bool{
 	"serve": true, "setup": true, "doctor": true, "migrate": true, "backup": true,
 	"restore": true, "update": true, "user": true, "project": true, "key": true,
-	"healthcheck": true, "version": true, "job": true,
+	"healthcheck": true, "version": true, "job": true, "domain": true,
 }
 
 // splitCommand finds the subcommand anywhere in args so that both
@@ -104,6 +104,8 @@ func main() {
 		runHealthcheckCommand(rest)
 	case "job":
 		runJobCommand(rest)
+	case "domain":
+		runDomainCommand(rest)
 	}
 }
 
@@ -120,6 +122,7 @@ func printHelp() {
   evechat update [--check]         به‌روزرسانی باینری
   evechat user add|list|passwd|disable
   evechat project add|list|key-rotate
+  evechat domain status|set <domain>|ssl
   evechat key rotate|status
   evechat healthcheck              بررسی سلامت (برای داکر/systemd)
   evechat version                  نمایش نسخه
@@ -134,6 +137,12 @@ func printHelp() {
   --admin-email --admin-password --admin-name
   --project-name --domains --port --public-url --data-dir
   --print-credentials --json
+
+گزینه‌های domain:
+  status                      وضعیت دامنه، پورت و گواهی
+  set <domain>                اتصال دامنه (بدون نیاز به نوشتن پورت)
+  ssl                         دریافت/تمدید گواهی Let's Encrypt
+  --ssl --email <address>     همراه با set یا ssl
 
 گزینه‌های doctor:
   --json --verbose --only <id,id> --fix

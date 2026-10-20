@@ -21,9 +21,33 @@ curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | 
 | `--port 8080` | پورت سرویس |
 | `--public-url https://chat.example.com` | آدرس عمومی |
 | `--base-url https://mirror.example.ir/evechat` | آینه دانلود |
+| `--behind-proxy --domain chat.example.com` | پشت nginx، شنود روی loopback |
+| `--write-nginx` | نوشتن vhost اختصاصی nginx |
+| `--configure-domain` | تعریف/تغییر دامنه روی نصب موجود |
+| `--ssl --email you@example.com` | دریافت گواهی Let's Encrypt |
 | `--no-systemd` | نصب بدون سرویس |
 | `--skip-setup` | فقط باینری |
 | `--uninstall` / `--purge` | حذف نصب (پیش‌فرض داده‌ها حفظ) |
+
+## دامنه و SSL بدون نوشتن پورت
+
+پورت از `server.port` در `evechat.yaml` خوانده می‌شود؛ لازم نیست آن را دوباره بنویسید:
+
+```bash
+sudo evechat domain set chat.example.com          # اتصال دامنه (vhost HTTP)
+sudo evechat domain ssl --email you@example.com   # دریافت/تمدید Let's Encrypt
+sudo evechat domain status                        # دامنه، پورت، گواهی و سلامت
+```
+
+`domain set` فایل vhost اختصاصی nginx را می‌نویسد، EveChat را روی `127.0.0.1` می‌آورد،
+`trust_proxy` را روشن می‌کند و سرویس را restart می‌کند. `domain ssl` در صورت نبود
+certbot آن را نصب می‌کند، گواهی را از طریق nginx می‌گیرد، vhost را به HTTPS تبدیل
+می‌کند و `server.public_url` را به‌روز می‌کند. همین کارها از نصب‌کننده هم در دسترس است:
+
+```bash
+sudo install.sh --configure-domain --domain chat.example.com
+sudo install.sh --configure-domain --ssl --email you@example.com
+```
 
 ## داکر
 

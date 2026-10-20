@@ -24,7 +24,7 @@ build() {
   else
     cp "dist/${name}" "stage/${name}/evechat"
   fi
-  cp evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
+  cp evechat.example.yaml LICENSE README.md README.fa.md NOTICE install.sh "stage/${name}/"
   cp -r deploy "stage/${name}/deploy"
   if [ -n "$extra" ]; then unset "${extra%%=*}"; fi
   if [ "$goos" = "windows" ]; then
@@ -32,6 +32,7 @@ build() {
   else
     tar -C stage -czf "dist/${name}.tar.gz" "${name}"
     tar -tzf "dist/${name}.tar.gz" | grep -xF "${name}/evechat" >/dev/null
+    tar -tzf "dist/${name}.tar.gz" | grep -xF "${name}/install.sh" >/dev/null
   fi
   rm -rf "stage/${name}"
 }

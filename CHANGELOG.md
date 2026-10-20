@@ -4,29 +4,29 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) ·
 Versioning: [SemVer](https://semver.org/).
 
-## [1.2.6] - 2026-10-19
-
-### Added
-- **In-panel page guides.** Every sidebar page now has a short «از کجا شروع
-  کنم؟» card with three concrete steps, a common-mistake note, and the page's
-  full intro; desktop shows it open, mobile expands it with one tap.
-- **Clearer technical language.** English terms stay English (`webhook`,
-  `curl`, `JSONPath`, `PoW`, `IP`/`CIDR`, `User-Agent`, `GDPR`, `HTTPS`,
-  `API`); the menu is now «Webhookها».
-- **Field help** for the new-ticket form, the optional login project key, and
-  the password-recovery pages.
-
-### Fixed
-- The mobile inbox no longer shows an empty chat pane next to the list; the
-  list uses the full width until a conversation is selected.
-- The page intro is no longer clamped to two lines on desktop.
-
 ## [Unreleased]
 
 ### Planned
 - Redis broker behind the `redis` build tag for multi-node deployments.
 - Billing provider adapters (interface only today).
 - Realtime translation of agent messages.
+
+## [1.2.8] - 2026-10-20
+
+### Added
+- **Domain and TLS CLI.** `evechat domain set <domain>` attaches a domain to
+  an existing install, `evechat domain ssl --email …` obtains a Let's Encrypt
+  certificate through nginx, and `evechat domain status` shows domain, port,
+  certificate and health. Neither command needs `--port`: the port is read from
+  `server.port`. Both delegate the vhost/certbot work to the installed
+  `install.sh`, so there is one implementation.
+- `install.sh --configure-domain --domain … [--ssl --email …]` provides the
+  same flow from the installer, and `--ssl` can be combined with a fresh
+  install. The vhost is tried before the app is moved to `127.0.0.1`; failed
+  `nginx -t` or certbot runs leave the previous state in place.
+- Release archives now include `install.sh` next to the binary so the CLI can
+  find it. The installer also links `/usr/local/bin/evechat` when that name is
+  free, so `evechat domain …` works from any directory.
 
 ## [1.2.7] - 2026-10-20
 
@@ -56,6 +56,23 @@ Versioning: [SemVer](https://semver.org/).
 - Telemetry-free preflight and clearer failures (missing tools, occupied port,
   wrong architecture, unreachable GitHub, unhealthy service).
 
+
+## [1.2.6] - 2026-10-19
+
+### Added
+- **In-panel page guides.** Every sidebar page now has a short «از کجا شروع
+  کنم؟» card with three concrete steps, a common-mistake note, and the page's
+  full intro; desktop shows it open, mobile expands it with one tap.
+- **Clearer technical language.** English terms stay English (`webhook`,
+  `curl`, `JSONPath`, `PoW`, `IP`/`CIDR`, `User-Agent`, `GDPR`, `HTTPS`,
+  `API`); the menu is now «Webhookها».
+- **Field help** for the new-ticket form, the optional login project key, and
+  the password-recovery pages.
+
+### Fixed
+- The mobile inbox no longer shows an empty chat pane next to the list; the
+  list uses the full width until a conversation is selected.
+- The page intro is no longer clamped to two lines on desktop.
 
 ## [1.2.5] - 2026-10-19
 

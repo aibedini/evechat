@@ -21,7 +21,7 @@
 # shellcheck disable=SC2016
 set -Eeuo pipefail
 
-INSTALLER_VERSION="2.0.0"
+INSTALLER_VERSION="2.1.0"
 APP_NAME="EveChat"
 REPO="aibedini/evechat"
 GITHUB="https://github.com/${REPO}"
@@ -56,6 +56,8 @@ PORT_SET=0
 DIR_SET=0
 USER_SET=0
 PUBLIC_URL_SET=0
+SSL_REQUESTED=0
+ACME_EMAIL="${EVECHAT_ACME_EMAIL:-}"
 [ -z "$PORT" ] || PORT_SET=1
 [ -z "${EVECHAT_DIR:-}" ] || DIR_SET=1
 [ -z "${EVECHAT_SERVICE_USER:-}" ] || USER_SET=1
@@ -111,6 +113,7 @@ SETUP_PASSWORD=""
 SETUP_KEY=""
 SETUP_URL=""
 NGINX_FAILED=0
+SSL_FAILED=0
 # -----------------------------------------------------------------------------
 #  Output helpers
 # -----------------------------------------------------------------------------
@@ -349,6 +352,7 @@ Usage:
   install.sh --install          guided install
   install.sh --upgrade          replace the binary, keep data
   install.sh --nginx            write an nginx vhost for this install
+  install.sh --configure-domain attach a domain (and optionally TLS) to an install
   install.sh --status           show service, port, TLS and disk status
   install.sh --logs             show recent service logs
   install.sh --uninstall        remove the service and binary, keep data
@@ -357,7 +361,7 @@ Usage:
 Common options:
   --version <v>          release to install (default: latest)
   --dir <path>           install directory (default: /opt/evechat)
-  --port <n>             service port (default: 3000, auto-picks a free one)
+  --port <n>             service port for a new install (existing installs read server.port)
   --public-url <url>     public dashboard URL
   --behind-proxy         bind 127.0.0.1 and trust the local reverse proxy
   --direct               bind 0.0.0.0 and serve the port directly
@@ -365,6 +369,9 @@ Common options:
   --domain <name>        public domain, for example chat.example.com
   --write-nginx          write an nginx vhost (implies --behind-proxy)
   --no-nginx             never write an nginx vhost
+  --ssl                   obtain a Let's Encrypt certificate with certbot
+  --email <address>       ACME account email for --ssl
+  --configure-domain      apply --domain/--ssl to an existing install (no port)
   --nginx-conf <path>    explicit nginx vhost path
   --user <name>          service user (default: evechat)
   --no-systemd           do not install a systemd unit
@@ -383,6 +390,9 @@ Examples:
   curl -fsSL .../install.sh | sudo bash
   curl -fsSL .../install.sh | sudo bash -s -- --yes --behind-proxy --domain chat.example.com --write-nginx
   sudo ./install.sh --port 3100 --behind-proxy --domain chat.example.com --write-nginx
+  sudo ./install.sh --configure-domain --domain chat.example.com
+  sudo ./install.sh --configure-domain --domain chat.example.com --ssl --email you@example.com
+  sudo ./install.sh --configure-domain --ssl --email you@example.com   # domain from config
 
 Safety:
   * Port 3000 is used only if free; otherwise the installer suggests 3100+.
@@ -616,6 +626,7 @@ render_main_menu() {
   local -a labels=(
     "Install EveChat"
     "Upgrade"
+    "Domain & TLS"
     "Reverse proxy (nginx)"
     "Health & status"
     "Uninstall"
@@ -624,6 +635,7 @@ render_main_menu() {
   local -a hints=(
     "guided setup · about 2 minutes"
     "latest release · keeps data"
+    "domain · certificate · no port"
     "write a validated vhost"
     "service, port, TLS and disk"
     "remove service · keeps data"
@@ -644,7 +656,7 @@ render_main_menu() {
   ui_panel_close
 
   ui_heading "WHAT WOULD YOU LIKE TO DO?"
-  while [ "$i" -lt 6 ]; do
+  while [ "$i" -lt 7 ]; do
     if [ "$i" -eq "$selected" ]; then
       ui_menu_item 1 "$((i + 1))" "${labels[$i]}" "${hints[$i]}"
     else
@@ -656,7 +668,7 @@ render_main_menu() {
     ui_blank
     ui_warn "Changes need root. Re-run with: sudo bash install.sh"
   fi
-  ui_footer 6
+  ui_footer 7
 }
 
 main_menu() {
@@ -666,15 +678,15 @@ main_menu() {
     render_main_menu "$selected"
     tui_read_key
     case "$TUI_KEY" in
-      up|k|K) selected=$(((selected + 5) % 6)) ;;
-      down|j|J) selected=$(((selected + 1) % 6)) ;;
+      up|k|K) selected=$(((selected + 6) % 7)) ;;
+      down|j|J) selected=$(((selected + 1) % 7)) ;;
       enter) ;;
-      [1-6]) selected=$((TUI_KEY - 1)) ;;
+      [1-7]) selected=$((TUI_KEY - 1)) ;;
       q|Q) ui_clear; exit 0 ;;
       *) continue ;;
     esac
     case "$selected" in
-      0|1|2|4)
+      0|1|2|3|5)
         if [ "$(id -u)" -ne 0 ]; then
           ui_warn "This action needs root. Re-run with: sudo bash install.sh"
           ui_pause
@@ -685,10 +697,11 @@ main_menu() {
     case "$selected" in
       0) flow_install || true ;;
       1) flow_upgrade || true ;;
-      2) flow_proxy || true ;;
-      3) flow_status || true ;;
-      4) flow_uninstall || true ;;
-      5) ui_clear; exit 0 ;;
+      2) flow_domain || true ;;
+      3) flow_proxy || true ;;
+      4) flow_status || true ;;
+      5) flow_uninstall || true ;;
+      6) ui_clear; exit 0 ;;
     esac
     ui_pause
   done
@@ -1012,6 +1025,18 @@ cfg_get() {
 
 url_host() {
   printf '%s' "$1" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#/.*$##; s#:[0-9]+$##'
+}
+
+is_domain_name() {
+  local d="$1"
+  [ -n "$d" ] || return 1
+  case "$d" in
+    localhost|127.*|::1|\[::1\]) return 1 ;;
+  esac
+  case "$d" in
+    *[!0-9.]*) return 0 ;;
+  esac
+  return 1
 }
 
 unit_belongs() {
@@ -1483,13 +1508,20 @@ install_service_user() {
 }
 
 install_files() {
-  local src_deploy="" candidate=""
+  local src_deploy="" candidate="" self_dir="" script_src=""
   install -d -m 0755 "$DIR"
   if [ -f "$DIR/evechat" ]; then
     cp -p "$DIR/evechat" "$DIR/evechat.prev" 2>/dev/null || true
   fi
   install -m 0755 "$RELEASE_BIN" "$DIR/.evechat.new"
   mv -f "$DIR/.evechat.new" "$DIR/evechat"
+  if [ -d /usr/local/bin ]; then
+    if [ -L /usr/local/bin/evechat ] || [ ! -e /usr/local/bin/evechat ]; then
+      ln -sfn "$DIR/evechat" /usr/local/bin/evechat 2>/dev/null || ui_warn "Could not link /usr/local/bin/evechat."
+    else
+      ui_warn "/usr/local/bin/evechat already exists and is not a symlink; not replacing it."
+    fi
+  fi
 
   if [ -f "${TMPDIR_INSTALL}/evechat.example.yaml" ]; then
     install -m 0644 "${TMPDIR_INSTALL}/evechat.example.yaml" "$DIR/evechat.example.yaml"
@@ -1510,6 +1542,19 @@ install_files() {
   if [ -n "$src_deploy" ]; then
     install -d -m 0755 "$DIR/deploy"
     cp -R "${src_deploy}/." "$DIR/deploy/" 2>/dev/null || true
+  fi
+
+  if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || self_dir=""
+  fi
+  for candidate in "${TMPDIR_INSTALL}/install.sh" "${TMPDIR_INSTALL}"/*/install.sh \
+    ${self_dir:+"${self_dir}/install.sh"}; do
+    [ -f "$candidate" ] || continue
+    script_src="$candidate"
+    break
+  done
+  if [ -n "$script_src" ] && [ "$script_src" != "$DIR/install.sh" ]; then
+    install -m 0755 "$script_src" "$DIR/install.sh"
   fi
 
   install -d -m 0750 "$DIR/data" "$DIR/data/uploads"
@@ -1820,6 +1865,199 @@ dns_get_ip() {
     ip="$(dig +short "$domain" A 2>/dev/null | grep -E '^[0-9.]+$' | head -n1)"
   fi
   [ -z "$ip" ] || printf '%s' "$ip"
+}
+
+certbot_ready() {
+  command -v certbot >/dev/null 2>&1 || return 1
+  certbot plugins 2>/dev/null | grep -qi nginx
+}
+
+install_certbot() {
+  certbot_ready && return 0
+  ui_warn "certbot with the nginx plugin is required for automatic TLS."
+  if [ "$PROMPT" = 1 ]; then
+    confirm_yes "Install certbot now?" "y" || return 1
+  else
+    ui_note "Installing certbot and its nginx plugin..."
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq >/dev/null 2>&1 || true
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y certbot python3-certbot-nginx; then
+      ui_err "Could not install certbot with apt-get."
+      return 1
+    fi
+  elif command -v dnf >/dev/null 2>&1; then
+    if ! dnf install -y certbot python3-certbot-nginx; then
+      ui_err "Could not install certbot with dnf."
+      return 1
+    fi
+  elif command -v yum >/dev/null 2>&1; then
+    if ! yum install -y certbot python3-certbot-nginx; then
+      ui_err "Could not install certbot with yum."
+      return 1
+    fi
+  else
+    ui_err "No supported package manager found."
+    ui_note "Install certbot and the nginx plugin manually, then retry."
+    return 1
+  fi
+
+  if ! certbot_ready; then
+    ui_err "certbot is installed but its nginx plugin is not available."
+    ui_note "Install the certbot nginx plugin and retry."
+    return 1
+  fi
+  ui_ok "certbot is ready"
+  return 0
+}
+
+resolve_acme_email() {
+  local email="$ACME_EMAIL" default_email="admin@${DOMAIN}"
+  [ -n "$email" ] || email="$ADMIN_EMAIL"
+  if [ -z "$email" ]; then
+    local summary=""
+    for summary in "$DIR/setup-summary.txt" "$DIR/data/setup-summary.txt"; do
+      [ -f "$summary" ] || continue
+      email="$(sed -n 's/^Email[[:space:]]*:[[:space:]]*//p' "$summary" | head -n1)"
+      [ -n "$email" ] && break
+    done
+  fi
+  if [ -z "$email" ] && [ -f "$DIR/setup-result.json" ]; then
+    email="$(json_field admin_email "$(cat "$DIR/setup-result.json")")"
+  fi
+  if [ -z "$email" ] && [ "$PROMPT" = 1 ]; then
+    ask_value email "ACME account email" "$default_email"
+  fi
+  if [ -z "$email" ]; then
+    ui_err "An ACME account email is required; pass --email you@example.com."
+    return 1
+  fi
+  case "$email" in
+    *@*.*) ;;
+    *)
+      ui_err "Invalid ACME email: ${email}"
+      return 1
+      ;;
+  esac
+  ACME_EMAIL="$email"
+  printf '%s' "$email"
+}
+
+ensure_ssl_certificate() {
+  local email="" dns_ip="" status=0 certbot_log=""
+
+  [ -n "$DOMAIN" ] || { ui_err "A public domain is required for TLS."; return 1; }
+  nginx_installed || { ui_err "nginx is required for automatic TLS."; return 1; }
+  if systemd_available && ! systemctl is-active --quiet nginx 2>/dev/null; then
+    ui_err "nginx is installed but not running; start it before requesting TLS."
+    return 1
+  fi
+  if ! systemd_available && command -v pgrep >/dev/null 2>&1 && ! pgrep -x nginx >/dev/null 2>&1; then
+    ui_err "nginx is not running; start it before requesting TLS."
+    return 1
+  fi
+
+  detect_cert "$DOMAIN" || true
+  if [ -n "$CERT_FILE" ]; then
+    ui_ok "Certificate already present for ${DOMAIN}"
+    write_nginx_conf || return 1
+    return 0
+  fi
+
+  email="$(resolve_acme_email)" || return 1
+  install_certbot || return 1
+
+  # Certbot's nginx authenticator needs a live HTTP vhost for this name.
+  if ! write_nginx_conf; then
+    return 1
+  fi
+
+  dns_ip="$(dns_get_ip "$DOMAIN")"
+  if [ -z "$dns_ip" ]; then
+    ui_warn "No A/AAAA record was found for ${DOMAIN} yet."
+  elif [ "$dns_ip" != "$(primary_ip)" ]; then
+    ui_warn "${DOMAIN} resolves to ${dns_ip}; this server is $(primary_ip)."
+  fi
+  if [ "$PROMPT" = 1 ]; then
+    confirm_yes "Request a Let's Encrypt certificate for ${DOMAIN} now?" "y" || return 1
+  fi
+
+  certbot_log="${DIR}/certbot.log"
+  ui_step "Requesting a Let's Encrypt certificate for ${DOMAIN}"
+  set +e
+  certbot certonly --nginx \
+    -d "$DOMAIN" \
+    --cert-name "$DOMAIN" \
+    --non-interactive \
+    --agree-tos \
+    --no-eff-email \
+    --keep-until-expiring \
+    --email "$email" 2>&1 | tee "$certbot_log"
+  status=${PIPESTATUS[0]}
+  set -e
+  chmod 0600 "$certbot_log" 2>/dev/null || true
+
+  if [ "$status" -ne 0 ]; then
+    ui_err "certbot could not obtain a certificate (exit ${status})."
+    ui_note "The HTTP vhost is still in place; fix DNS/port 80 and retry."
+    ui_note "Log: ${certbot_log}"
+    return 1
+  fi
+
+  detect_cert "$DOMAIN" || true
+  if [ -z "$CERT_FILE" ]; then
+    ui_err "certbot finished but no certificate was found for ${DOMAIN}."
+    return 1
+  fi
+  if ! write_nginx_conf; then
+    return 1
+  fi
+  ui_ok "TLS is active for ${DOMAIN}"
+  return 0
+}
+
+# apply_domain_config points the app at 127.0.0.1, enables proxy trust, stores
+# the public URL and restarts the service. The port is taken from the existing
+# config; callers never need to type it.
+apply_domain_config() {
+  local cfg="$1" url="$2" backup="" unit="/etc/systemd/system/${SERVICE_NAME}.service"
+
+  backup="${cfg}.bak.$(date +%s)"
+  cp -p "$cfg" "$backup" || { ui_err "Could not back up ${cfg}."; return 1; }
+  if ! cfg_set_server "$cfg" "127.0.0.1" "$PORT" "$url" "true"; then
+    mv -f "$backup" "$cfg" 2>/dev/null || true
+    ui_err "Could not update server settings in ${cfg}."
+    return 1
+  fi
+  if [ "$(cfg_get "$cfg" host)" != "127.0.0.1" ] || [ "$(cfg_get "$cfg" public_url)" != "$url" ]; then
+    mv -f "$backup" "$cfg" 2>/dev/null || true
+    ui_err "The config did not accept the new server settings; previous values restored."
+    return 1
+  fi
+
+  if systemd_available && [ -f "$unit" ] && unit_belongs; then
+    if ! systemctl restart "$SERVICE_NAME"; then
+      ui_err "The service did not restart with the domain settings."
+      mv -f "$backup" "$cfg" 2>/dev/null || true
+      systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
+      return 1
+    fi
+    if ! wait_health; then
+      ui_err "Rolling back the domain settings."
+      mv -f "$backup" "$cfg" 2>/dev/null || true
+      systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
+      return 1
+    fi
+  else
+    ui_warn "No EveChat systemd unit was found; restart the service manually."
+  fi
+
+  HOST="127.0.0.1"
+  TRUST="true"
+  PUBLIC_URL="$url"
+  PUBLIC_URL_SET=1
+  return 0
 }
 
 write_nginx_conf() {
@@ -2233,6 +2471,11 @@ step_domain() {
   SCREEN_SUB="Step 4 of 6 · Public address"
   local answer=""
 
+  if [ "$SSL_REQUESTED" = 1 ] && [ "$NET_MODE" != "proxy" ]; then
+    ui_err "Automatic TLS requires proxy mode (--behind-proxy)."
+    return 1
+  fi
+
   if [ "$NET_MODE" != "proxy" ]; then
     if [ -z "$PUBLIC_URL" ]; then
       if [ "$NET_MODE" = "local" ]; then
@@ -2263,6 +2506,16 @@ step_domain() {
     ui_note "Use a subdomain you control, for example chat.example.com."
     ui_note "Leave it blank to keep EveChat on loopback and add a proxy later."
     ask_value DOMAIN "Public domain" ""
+  fi
+
+  if [ "$SSL_REQUESTED" = 1 ] && ! is_domain_name "${DOMAIN:-}"; then
+    DOMAIN=""
+    if [ "$PROMPT" = 1 ]; then
+      ui_screen "$SCREEN_TITLE" "$SCREEN_SUB"
+      ui_heading "PUBLIC DOMAIN FOR TLS"
+      ui_note "A real domain (not an IP or localhost) is required for a certificate."
+      ask_value DOMAIN "Public domain" ""
+    fi
   fi
 
   if [ -n "$DOMAIN" ]; then
@@ -2302,10 +2555,24 @@ step_domain() {
       WRITE_NGINX=0
       ui_warn "nginx is not installed; add your own reverse proxy for ${DOMAIN}."
     fi
-    if [ "$WRITE_NGINX" != 1 ] && [ "$PROMPT" != 1 ] && nginx_installed; then
+    if [ "$SSL_REQUESTED" = 1 ]; then
+      if ! nginx_installed; then
+        ui_err "Automatic TLS requires nginx on this server."
+        return 1
+      fi
+      if systemd_available && ! systemctl is-active --quiet nginx 2>/dev/null; then
+        ui_err "nginx is installed but not running; start it before requesting TLS."
+        return 1
+      fi
+      WRITE_NGINX=1
+    elif [ "$WRITE_NGINX" != 1 ] && [ "$PROMPT" != 1 ] && nginx_installed; then
       ui_warn "No vhost was requested; pass --write-nginx to let the installer create one."
     fi
   else
+    if [ "$SSL_REQUESTED" = 1 ]; then
+      ui_err "Automatic TLS needs a public domain."
+      return 1
+    fi
     if [ "$NET_MODE_EXPLICIT" != 1 ]; then
       if [ "$PROMPT" != 1 ] || confirm_yes "No domain. Expose EveChat directly on port ${PORT} instead?" "y"; then
         NET_MODE="direct"
@@ -2335,6 +2602,8 @@ step_domain() {
   ui_kv "URL" "$PUBLIC_URL"
   if [ "$NET_MODE" != "proxy" ]; then
     ui_kv "TLS" "not used"
+  elif [ "$SSL_REQUESTED" = 1 ] && [ -z "$CERT_FILE" ]; then
+    ui_kv "TLS" "Let's Encrypt (will be requested)"
   elif [ -n "$CERT_FILE" ]; then
     ui_kv "TLS" "certificate found"
   else
@@ -2385,7 +2654,13 @@ step_review() {
   [ "$NET_MODE" = "local" ] && mode="loopback only"
   [ "$WRITE_NGINX" = 1 ] && nginx_line="$(nginx_conf_target)"
   if [ "$NET_MODE" = "proxy" ]; then
-    if [ -n "$CERT_FILE" ]; then tls_line="certificate found"; else tls_line="HTTP only (no certificate)"; fi
+    if [ "$SSL_REQUESTED" = 1 ] && [ -z "$CERT_FILE" ]; then
+      tls_line="Let's Encrypt via certbot"
+    elif [ -n "$CERT_FILE" ]; then
+      tls_line="certificate found"
+    else
+      tls_line="HTTP only (no certificate)"
+    fi
   fi
   if [ "$NO_SYSTEMD" != 1 ] && systemd_available; then
     svc="systemd · ${SERVICE_NAME}.service"
@@ -2455,15 +2730,19 @@ show_success() {
   printf '  %s3%s  Add your EVE domain under Settings → Widget.\n' "$C_ACCENT" "$C_RESET"
   if [ -n "$DOMAIN" ] && [ -z "$CERT_FILE" ] && [ "$WRITE_NGINX" = 1 ]; then
     ui_blank
-    ui_warn "TLS is not configured yet. After adding a certificate, run:"
-    printf '      sudo certbot --nginx -d %s\n' "$DOMAIN"
-    printf '      curl -fsSL %s/raw/main/install.sh | sudo bash -s -- --nginx --domain %s\n' "$GITHUB" "$DOMAIN"
+    ui_warn "TLS is not configured yet. After DNS is ready, run:"
+    printf '      sudo %s/evechat domain ssl --email you@example.com\n' "$DIR"
+    printf '      # or: sudo install.sh --configure-domain --ssl --email you@example.com\n'
   fi
   if [ "$SETUP_FAILED" = 1 ]; then
     ui_warn "Finish the first-run setup at ${PUBLIC_URL}/setup"
   fi
   if [ "$NGINX_FAILED" = 1 ]; then
     ui_warn "The nginx vhost was not applied. See the message above."
+  fi
+  if [ "$SSL_FAILED" = 1 ]; then
+    ui_warn "TLS was not enabled; the HTTP vhost remains. Retry with:"
+    printf '      sudo %s/evechat domain ssl --email you@example.com\n' "$DIR"
   fi
   if [ "$NO_SYSTEMD" = 1 ]; then
     ui_blank
@@ -2515,11 +2794,41 @@ execute_install() {
     wait_health || die "The service did not come back after setup."
   fi
 
-  ui_stage 8 "$STAGE_TOTAL" "Configuring the reverse proxy"
+  ui_stage 8 "$STAGE_TOTAL" "Configuring the reverse proxy and TLS"
   if [ "$WRITE_NGINX" = 1 ]; then
     write_nginx_conf || NGINX_FAILED=1
   else
     ui_note "No nginx vhost was requested."
+  fi
+
+  if [ "$SSL_REQUESTED" = 1 ]; then
+    if [ "$NGINX_FAILED" = 1 ]; then
+      SSL_FAILED=1
+      ui_warn "TLS was skipped because the nginx vhost failed."
+    elif ensure_ssl_certificate; then
+      detect_cert "$DOMAIN" || true
+      if [ -n "$CERT_FILE" ]; then
+        PUBLIC_URL="https://${DOMAIN}"
+        if apply_domain_config "$DIR/evechat.yaml" "$PUBLIC_URL"; then
+          SETUP_URL="$PUBLIC_URL"
+          if [ -n "$SETUP_KEY" ] && [ -f "$DIR/embed-snippet.html" ]; then
+            old_umask="$(umask)"
+            umask 027
+            {
+              printf '<script>\n'
+              printf '  window.EveChat = { projectKey: "%s", apiUrl: "%s" };\n' "$SETUP_KEY" "$PUBLIC_URL"
+              printf '</script>\n'
+              printf '<script async src="%s/widget.js"></script>\n' "$PUBLIC_URL"
+            } > "$DIR/embed-snippet.html"
+            umask "$old_umask"
+          fi
+        else
+          SSL_FAILED=1
+        fi
+      fi
+    else
+      SSL_FAILED=1
+    fi
   fi
 
   report_changes
@@ -2535,6 +2844,10 @@ flow_install() {
   CHANGED_USER=""
   CHANGED_SYSTEMD=""
   CHANGED_NGINX=""
+  SSL_FAILED=0
+  NGINX_FAILED=0
+  SETUP_FAILED=0
+  ALREADY_CONFIGURED=0
 
   if is_installed; then
     ui_screen "INSTALL" "Existing installation detected"
@@ -2686,7 +2999,9 @@ flow_proxy() {
   need_root
   platform_detect
   discover_install_dir
+  local requested_domain="$DOMAIN"
   load_existing || return 1
+  [ -z "$requested_domain" ] || DOMAIN="$requested_domain"
   detect_environment
   CHANGED_USER=""
   CHANGED_SYSTEMD=""
@@ -2733,6 +3048,15 @@ flow_proxy() {
   if ! write_nginx_conf; then
     return 1
   fi
+  if [ "$SSL_REQUESTED" = 1 ] && [ -z "$CERT_FILE" ]; then
+    if ! ensure_ssl_certificate; then
+      return 1
+    fi
+    detect_cert "$DOMAIN" || true
+    if [ -n "$CERT_FILE" ]; then
+      PUBLIC_URL="https://${DOMAIN}"
+    fi
+  fi
 
   ui_blank
   if confirm_yes "Move EveChat to 127.0.0.1 and trust proxy headers?" "y"; then
@@ -2765,6 +3089,109 @@ flow_proxy() {
   ui_kv "vhost" "$(nginx_conf_target)"
   ui_kv "Upstream" "127.0.0.1:${PORT}"
   ui_panel_close
+  ui_note "Test it: curl -I ${PUBLIC_URL}"
+}
+
+flow_domain() {
+  need_root
+  platform_detect
+  discover_install_dir
+  local requested_domain="$DOMAIN"
+  load_existing || return 1
+  [ -z "$requested_domain" ] || DOMAIN="$requested_domain"
+  detect_environment
+  CHANGED_USER=""
+  CHANGED_SYSTEMD=""
+  CHANGED_NGINX=""
+  SSL_FAILED=0
+
+  local cfg="$DIR/evechat.yaml" new_domain="$DOMAIN" scheme="http"
+
+  ui_screen "DOMAIN" "Attach a domain without changing the port"
+  ui_panel_open "CURRENT"
+  ui_kv "Install dir" "$DIR"
+  ui_kv "Listen" "${HOST}:${PORT}"
+  ui_kv "Public URL" "$PUBLIC_URL"
+  ui_kv "nginx" "$(web_server_summary)"
+  ui_panel_close
+  ui_note "The service port is read from evechat.yaml; you never need to type it."
+  if [ "$PORT_SET" = 1 ]; then
+    ui_warn "Using the configured port ${PORT}; --port is ignored for an existing install."
+  fi
+
+  if [ -z "$new_domain" ] || ! is_domain_name "$new_domain"; then
+    new_domain=""
+    if [ "$PROMPT" = 1 ]; then
+      ask_value new_domain "Public domain" ""
+    fi
+  fi
+  if [ -z "$new_domain" ]; then
+    ui_err "A public domain is required."
+    ui_note "Example: sudo evechat domain set chat.example.com"
+    return 1
+  fi
+  case "$new_domain" in
+    *[!A-Za-z0-9.-]*|.*|*..*)
+      ui_err "Invalid domain: ${new_domain}"
+      return 1
+      ;;
+  esac
+  DOMAIN="$(printf '%s' "$new_domain" | tr '[:upper:]' '[:lower:]')"
+
+  if ! nginx_installed; then
+    ui_err "nginx is required to serve a domain."
+    ui_note "Install nginx first, or configure another reverse proxy manually."
+    return 1
+  fi
+
+  if [ "$SSL_REQUESTED" = 1 ]; then
+    if ! ensure_ssl_certificate; then
+      ui_err "The domain was not switched because TLS could not be enabled."
+      return 1
+    fi
+  else
+    detect_cert "$DOMAIN" || true
+    if ! write_nginx_conf; then
+      return 1
+    fi
+  fi
+
+  detect_cert "$DOMAIN" || true
+  if [ -n "$CERT_FILE" ]; then
+    scheme="https"
+  elif [ "$PUBLIC_URL_SET" = 1 ] && [ "$(url_host "$PUBLIC_URL")" = "$DOMAIN" ]; then
+    case "$PUBLIC_URL" in
+      https://*) scheme="https" ;;
+    esac
+  fi
+  PUBLIC_URL="${scheme}://${DOMAIN}"
+  if ! apply_domain_config "$cfg" "$PUBLIC_URL"; then
+    return 1
+  fi
+
+  CHANGED_NGINX="$(nginx_conf_target)"
+  CHANGED_SYSTEMD="/etc/systemd/system/${SERVICE_NAME}.service"
+  ui_clear
+  ui_banner
+  ui_panel_open "DOMAIN READY"
+  ui_kv "Domain" "$DOMAIN"
+  ui_kv "URL" "$PUBLIC_URL"
+  ui_kv "Listen" "127.0.0.1:${PORT}"
+  if [ -n "$CERT_FILE" ]; then
+    ui_kv "TLS" "active (${CERT_EXPIRY:-certificate found})"
+  else
+    ui_kv "TLS" "not configured"
+  fi
+  ui_kv "nginx vhost" "$(nginx_conf_target)"
+  ui_panel_close
+  if [ -z "$CERT_FILE" ]; then
+    ui_blank
+    ui_note "Add TLS later without touching the port:"
+    printf '    sudo %s/evechat domain ssl --email you@example.com\n' "$DIR"
+    printf '    # or: sudo install.sh --configure-domain --ssl --email you@example.com\n'
+  else
+    ui_ok "Renewal is handled by the certbot timer installed with the package."
+  fi
   ui_note "Test it: curl -I ${PUBLIC_URL}"
 }
 
@@ -2894,7 +3321,10 @@ flow_uninstall() {
   fi
 
   remove_nginx_conf || true
-  rm -f "$DIR/evechat" "$DIR/evechat.prev" "$DIR/.evechat.new" "$DIR/.evechat-install" "$DIR/evechat.example.yaml"
+  if [ -L /usr/local/bin/evechat ] && [ "$(readlink /usr/local/bin/evechat 2>/dev/null)" = "$DIR/evechat" ]; then
+    rm -f /usr/local/bin/evechat
+  fi
+  rm -f "$DIR/evechat" "$DIR/evechat.prev" "$DIR/.evechat.new" "$DIR/.evechat-install" "$DIR/evechat.example.yaml" "$DIR/install.sh"
   ui_ok "Service and binary removed"
 
   if [ "$PURGE" = 1 ]; then
@@ -2983,6 +3413,7 @@ parse_args() {
         shift
         ;;
       --no-nginx) WRITE_NGINX=0; shift ;;
+      --configure-domain) set_action "domain"; shift ;;
       --status) set_action "status"; shift ;;
       --logs) set_action "logs"; shift ;;
       --uninstall) set_action "uninstall"; shift ;;
@@ -3000,6 +3431,12 @@ parse_args() {
       --public-url=*) PUBLIC_URL="${1#*=}"; shift ;;
       --domain) DOMAIN="${2:-}"; [ -n "$DOMAIN" ] || die "--domain needs a value."; shift 2 ;;
       --domain=*) DOMAIN="${1#*=}"; shift ;;
+      --ssl) SSL_REQUESTED=1; shift ;;
+      --no-ssl) SSL_REQUESTED=0; shift ;;
+      --email|--acme-email|--certbot-email)
+        ACME_EMAIL="${2:-}"; [ -n "$ACME_EMAIL" ] || die "$1 needs a value."; shift 2 ;;
+      --email=*|--acme-email=*|--certbot-email=*)
+        ACME_EMAIL="${1#*=}"; [ -n "$ACME_EMAIL" ] || die "$1 needs a value."; shift ;;
       --nginx-conf) NGINX_CONF="${2:-}"; [ -n "$NGINX_CONF" ] || die "--nginx-conf needs a value."; shift 2 ;;
       --nginx-conf=*) NGINX_CONF="${1#*=}"; shift ;;
       --user) SERVICE_USER="${2:-}"; [ -n "$SERVICE_USER" ] || die "--user needs a value."; USER_SET=1; shift 2 ;;
@@ -3027,7 +3464,11 @@ parse_args() {
     die "Unexpected argument: $1"
   fi
   # Flags such as --port or --domain are install requests, not a request for
-  # the menu. Only a bare `install.sh` opens the menu.
+  # the menu. `--ssl` alone means "enable TLS for the existing install" when
+  # there is one; on a fresh host it still means "install with TLS".
+  if [ -z "$ACTION" ] && [ "$SSL_REQUESTED" = 1 ] && [ -f "$DIR/evechat.yaml" ]; then
+    ACTION="domain"
+  fi
   if [ -z "$ACTION" ] && [ "$arg_count" -gt 0 ]; then
     ACTION="install"
   fi
@@ -3077,6 +3518,25 @@ parse_args() {
     fi
     NET_MODE="proxy"
     NET_MODE_EXPLICIT=1
+  fi
+  if [ "$SSL_REQUESTED" = 1 ]; then
+    if [ -n "$NET_MODE" ] && [ "$NET_MODE" != "proxy" ]; then
+      die "--ssl requires proxy mode (use --behind-proxy, not --direct/--local)."
+    fi
+    if [ "$WRITE_NGINX" = 0 ]; then
+      die "--ssl cannot be combined with --no-nginx."
+    fi
+    NET_MODE="proxy"
+    NET_MODE_EXPLICIT=1
+    WRITE_NGINX=1
+  fi
+  if [ "$ACTION" = "domain" ]; then
+    if [ -n "$NET_MODE" ] && [ "$NET_MODE" != "proxy" ]; then
+      die "--configure-domain requires proxy mode."
+    fi
+    if [ "$WRITE_NGINX" = 0 ]; then
+      die "--configure-domain cannot be combined with --no-nginx."
+    fi
   fi
 }
 
@@ -3139,6 +3599,7 @@ main() {
   case "$ACTION" in
     install) flow_install ;;
     upgrade) flow_upgrade ;;
+    domain) flow_domain ;;
     nginx) flow_proxy ;;
     status) flow_status ;;
     logs) flow_logs ;;

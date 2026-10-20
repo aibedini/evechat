@@ -43,7 +43,7 @@ EveChat برای تیم‌های پشتیبانی فارسی طراحی شده �
 curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | sudo bash
 ```
 
-نصب‌کننده در ترمینال یک **منوی تعاملی انگلیسی** (نصب، ارتقا، پروکسی nginx، وضعیت، حذف) نشان می‌دهد. آخرین نسخه را دانلود می‌کند، checksum را بررسی می‌کند، کاربر سرویس می‌سازد، کلیدهای امنیتی را در `.env` می‌نویسد، سرویس systemd را راه می‌اندازد و در پایان **آدرس پنل، ایمیل، رمز عبور و کلید پروژه** را چاپ می‌کند. پورت ۳۰۰۰ اگر اشغال باشد، خودش پورت آزاد پیشنهاد می‌دهد و به nginx/EVE کاری ندارد.
+نصب‌کننده در ترمینال یک **منوی تعاملی انگلیسی** (نصب، ارتقا، دامنه و SSL، پروکسی nginx، وضعیت، حذف) نشان می‌دهد. آخرین نسخه را دانلود می‌کند، checksum را بررسی می‌کند، کاربر سرویس می‌سازد، کلیدهای امنیتی را در `.env` می‌نویسد، سرویس systemd را راه می‌اندازد و در پایان **آدرس پنل، ایمیل، رمز عبور و کلید پروژه** را چاپ می‌کند. پورت ۳۰۰۰ اگر اشغال باشد، خودش پورت آزاد پیشنهاد می‌دهد و به nginx/EVE کاری ندارد.
 
 گزینه‌های پرکاربرد:
 
@@ -52,6 +52,23 @@ curl -fsSL .../install.sh | sudo bash -s -- --version v1.1.0 --dir /opt/evechat 
 curl -fsSL .../install.sh | sudo bash -s -- --no-systemd
 curl -fsSL .../install.sh | sudo bash -s -- --base-url https://mirror.example.ir/evechat   # شبکه محدود
 curl -fsSL .../install.sh | sudo bash -s -- --uninstall                                   # داده‌ها حفظ می‌شوند
+```
+
+### دامنه و SSL بدون نوشتن پورت
+
+پورت از `server.port` خوانده می‌شود؛ لازم نیست دوباره آن را وارد کنید:
+
+```bash
+sudo evechat domain set chat.example.com          # اتصال دامنه + vhost
+sudo evechat domain ssl --email you@example.com   # دریافت/تمدید Let's Encrypt
+sudo evechat domain status                        # دامنه، پورت، گواهی، سلامت
+```
+
+در نصب‌کننده هم:
+
+```bash
+sudo install.sh --configure-domain --domain chat.example.com
+sudo install.sh --configure-domain --ssl --email you@example.com
 ```
 
 ### داکر (بدون build)

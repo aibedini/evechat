@@ -11,7 +11,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
   -ldflags "-s -w -X main.version=${VERSION}" -o "dist/${NAME}/evechat" ./cmd/evechat
 
 cp evechat.example.yaml LICENSE README.fa.md NOTICE "dist/${NAME}/"
-cp install-offline.sh "dist/${NAME}/"
+cp install.sh install-offline.sh "dist/${NAME}/"
 cp -r deploy/systemd deploy/caddy deploy/nginx "dist/${NAME}/deploy/"
 cp -r embed/assets/fonts "dist/${NAME}/fonts"
 (cd "dist/${NAME}" && sha256sum evechat > checksums.txt)
