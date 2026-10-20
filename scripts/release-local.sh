@@ -31,7 +31,7 @@ build() {
     (cd stage && zip -qr "../dist/${name}.zip" "${name}")
   else
     tar -C stage -czf "dist/${name}.tar.gz" "${name}"
-    tar -tzf "dist/${name}.tar.gz" | grep -qxF "${name}/evechat"
+    tar -tzf "dist/${name}.tar.gz" | grep -xF "${name}/evechat" >/dev/null
   fi
   rm -rf "stage/${name}"
 }
