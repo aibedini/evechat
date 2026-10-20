@@ -28,6 +28,34 @@ Versioning: [SemVer](https://semver.org/).
 - Billing provider adapters (interface only today).
 - Realtime translation of agent messages.
 
+## [1.2.7] - 2026-10-20
+
+### Fixed
+- **Installer could not find the binary in a release archive.** Release
+  archives name the executable `evechat_<version>_<os>_<arch>`; the installer
+  now detects both that legacy name and the new `evechat` name, verifies the
+  ELF/Mach-O type, and refuses a binary built for another architecture.
+- **Checksums with a `./` prefix were ignored.** `checksums.txt` entries are
+  normalized before comparison, so the archive is verified instead of skipped.
+- **`--behind-proxy` was undone by the setup step.** `evechat setup` now
+  preserves `server.host` (for example `127.0.0.1`) and writes
+  `server.trusted_proxies` when trust is enabled, instead of forcing
+  `0.0.0.0`.
+- Release archives now ship the executable as `evechat` (CI asserts it), so
+  other installers and scripts find it by the documented name.
+
+### Changed
+- **`install.sh` is an English interactive installer.** It opens a terminal
+  menu (install, upgrade, reverse proxy, status, uninstall), shows the detected
+  OS, memory, disk, web server and neighbours, and asks for location, network
+  mode, port, domain, TLS and admin credentials before confirming.
+- **nginx/EVE coexistence is explicit.** The installer never touches another
+  vhost, picks a free port when 3000 is busy, writes only its own marked file,
+  refuses a duplicate `server_name`, runs `nginx -t`, and rolls back on failure.
+  EVE, Redis, Docker and other services are detected but never stopped.
+- Telemetry-free preflight and clearer failures (missing tools, occupied port,
+  wrong architecture, unreachable GitHub, unhealthy service).
+
 
 ## [1.2.5] - 2026-10-19
 

@@ -19,13 +19,19 @@ build() {
     -o "dist/${name}" ./cmd/evechat
   rm -rf "stage/${name}"
   mkdir -p "stage/${name}"
-  cp "dist/${name}" evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
+  if [ "$goos" = "windows" ]; then
+    cp "dist/${name}" "stage/${name}/evechat.exe"
+  else
+    cp "dist/${name}" "stage/${name}/evechat"
+  fi
+  cp evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
   cp -r deploy "stage/${name}/deploy"
   if [ -n "$extra" ]; then unset "${extra%%=*}"; fi
   if [ "$goos" = "windows" ]; then
     (cd stage && zip -qr "../dist/${name}.zip" "${name}")
   else
     tar -C stage -czf "dist/${name}.tar.gz" "${name}"
+    tar -tzf "dist/${name}.tar.gz" | grep -qxF "${name}/evechat"
   fi
   rm -rf "stage/${name}"
 }

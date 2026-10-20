@@ -47,7 +47,10 @@ try {
 
 Expand-Archive -Path (Join-Path $tmp $archive) -DestinationPath $tmp -Force
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-Copy-Item (Join-Path $tmp "evechat.exe") (Join-Path $Dir "evechat.exe") -Force
+$exe = Get-ChildItem -Path $tmp -Filter "evechat*.exe" -File -Recurse |
+    Sort-Object Length -Descending | Select-Object -First 1
+if (-not $exe) { throw "EveChat binary not found in the archive" }
+Copy-Item $exe.FullName (Join-Path $Dir "evechat.exe") -Force
 Write-Ok "باینری در $Dir\evechat.exe نصب شد"
 
 $envFile = Join-Path $Dir ".env"
@@ -55,7 +58,7 @@ if (-not (Test-Path $envFile)) {
     $jwt = [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
     $key = [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
     @(
-        "# EveChat — generated $(Get-Date -Format o)",
+        "# EveChat - generated $(Get-Date -Format o)",
         "EVECHAT_AUTH__JWT_SECRET=$jwt",
         "EVECHAT_ENCRYPTION_KEY_V1=$key"
     ) | Set-Content -Path $envFile -Encoding ASCII

@@ -100,5 +100,5 @@ set -a; . "$DIR/.env"; set +a
 "$DIR/evechat" --config "$DIR/evechat.yaml" setup --non-interactive --print-credentials
 
 echo
-echo "EveChat نصب آفلاین کامل شد: $PUBLIC_URL"
-echo "برای اجرای دستی: $DIR/evechat --config $DIR/evechat.yaml serve"
+echo "EveChat offline install complete: $PUBLIC_URL"
+echo "Run it manually with: $DIR/evechat --config $DIR/evechat.yaml serve"

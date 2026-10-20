@@ -5,8 +5,10 @@
 ## نصب‌کننده یک‌خطی
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | sudo bash
 ```
+
+در ترمینال، یک منوی تعاملی انگلیسی باز می‌شود (نصب، ارتقا، nginx، وضعیت، حذف). برای نصب کاملاً بدون پرسش، `--yes` را اضافه کنید.
 
 گام‌هایی که انجام می‌شود: تشخیص سیستم → بررسی ابزارها → دریافت آخرین نسخه → دانلود و **بررسی sha256** → ساخت کاربر `evechat` → نصب در `/opt/evechat` → ساخت `.env` و `evechat.yaml` → نصب systemd → انتظار برای سلامت → اجرای ویزارد و چاپ اطلاعات ورود.
 

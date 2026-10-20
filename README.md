@@ -5,10 +5,19 @@
 🇮🇷 [مستندات کامل فارسی](README.fa.md) · 📦 [Releases](https://github.com/aibedini/evechat/releases) · 📖 [API](docs/API.md) · 🔒 [Security](SECURITY.md)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | sudo bash
 ```
 
-The installer verifies checksums, creates a system user, generates secrets, installs a hardened systemd unit and prints the dashboard URL with credentials. Open the URL and the five-step web wizard finishes the setup.
+The installer opens an English interactive menu when a terminal is available:
+guided install, upgrade, reverse-proxy setup, health and uninstall. It detects
+nginx/Apache/Caddy and EVE, keeps every other service untouched, picks a free
+port when 3000 is busy, and writes an nginx vhost only to a file it owns — after
+`nginx -t` passes. On a non-TTY it runs unattended with defaults; add `--yes`
+for a fully scripted install.
+
+It verifies checksums, creates a system user, generates secrets, installs a
+hardened systemd unit and prints the dashboard URL with credentials. Open the
+URL and the five-step web wizard finishes the setup.
 
 ## What it is
 
@@ -24,7 +33,7 @@ The installer verifies checksums, creates a system user, generates secrets, inst
 
 | Method | Command |
 |---|---|
-| Binary (Linux/macOS) | `curl -fsSL …/install.sh \| bash` |
+| Binary (Linux/macOS) | `curl -fsSL …/install.sh \| sudo bash` |
 | Windows | `irm …/install.ps1 \| iex` |
 | Docker | `docker compose -f docker-compose.quick.yml up -d` |
 | Air-gapped | `make bundle`, then `./install-offline.sh` |

@@ -86,13 +86,19 @@ jobs:
               -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
               -o "dist/${name}" ./cmd/evechat
             mkdir -p "stage/${name}"
-            cp "dist/${name}" evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
+            if [ "$goos" = "windows" ]; then
+              cp "dist/${name}" "stage/${name}/evechat.exe"
+            else
+              cp "dist/${name}" "stage/${name}/evechat"
+            fi
+            cp evechat.example.yaml LICENSE README.md README.fa.md NOTICE "stage/${name}/"
             cp -r deploy "stage/${name}/deploy"
             if [ -n "$goarm" ]; then unset GOARM; fi
             if [ "$goos" = "windows" ]; then
               (cd stage && zip -qr "../dist/${name}.zip" "${name}" && rm -rf "${name}")
             else
               tar -C stage -czf "dist/${name}.tar.gz" "${name}"
+              tar -tzf "dist/${name}.tar.gz" | grep -qxF "${name}/evechat"
               rm -rf "stage/${name}"
             fi
           }
@@ -102,7 +108,7 @@ jobs:
           build darwin amd64 amd64 ""
           build darwin arm64 arm64 ""
           build windows amd64 amd64 ".exe"
-          (cd dist && sha256sum ./* > checksums.txt)
+          (cd dist && sha256sum * > checksums.txt)
           cp embed/widget/widget.js dist/widget.js
           ls -lh dist
 

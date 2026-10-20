@@ -40,18 +40,18 @@ EveChat برای تیم‌های پشتیبانی فارسی طراحی شده �
 ## نصب در ۶۰ ثانیه
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aibedini/evechat/main/install.sh | sudo bash
 ```
 
-نصب‌کننده آخرین نسخه را دانلود می‌کند، checksum را بررسی می‌کند، کاربر سرویس می‌سازد، کلیدهای امنیتی را در `.env` می‌نویسد، سرویس systemd را راه می‌اندازد و در پایان **آدرس پنل، ایمیل، رمز عبور و کلید پروژه** را چاپ می‌کند.
+نصب‌کننده در ترمینال یک **منوی تعاملی انگلیسی** (نصب، ارتقا، پروکسی nginx، وضعیت، حذف) نشان می‌دهد. آخرین نسخه را دانلود می‌کند، checksum را بررسی می‌کند، کاربر سرویس می‌سازد، کلیدهای امنیتی را در `.env` می‌نویسد، سرویس systemd را راه می‌اندازد و در پایان **آدرس پنل، ایمیل، رمز عبور و کلید پروژه** را چاپ می‌کند. پورت ۳۰۰۰ اگر اشغال باشد، خودش پورت آزاد پیشنهاد می‌دهد و به nginx/EVE کاری ندارد.
 
 گزینه‌های پرکاربرد:
 
 ```bash
-curl -fsSL .../install.sh | bash -s -- --version v1.1.0 --dir /opt/evechat --port 8080
-curl -fsSL .../install.sh | bash -s -- --no-systemd
-curl -fsSL .../install.sh | bash -s -- --base-url https://mirror.example.ir/evechat   # شبکه محدود
-curl -fsSL .../install.sh | bash -s -- --uninstall                                   # داده‌ها حفظ می‌شوند
+curl -fsSL .../install.sh | sudo bash -s -- --version v1.1.0 --dir /opt/evechat --port 8080
+curl -fsSL .../install.sh | sudo bash -s -- --no-systemd
+curl -fsSL .../install.sh | sudo bash -s -- --base-url https://mirror.example.ir/evechat   # شبکه محدود
+curl -fsSL .../install.sh | sudo bash -s -- --uninstall                                   # داده‌ها حفظ می‌شوند
 ```
 
 ### داکر (بدون build)
