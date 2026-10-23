@@ -63,6 +63,20 @@ components:
         refresh_token: { type: string }
         token_type: { type: string }
         expires_in: { type: integer }
+    PushDevice:
+      type: object
+      required: [device_id, token]
+      properties:
+        device_id: { type: string }
+        platform: { type: string, example: android }
+        provider: { type: string, enum: [fcm] }
+        token: { type: string }
+        app_version: { type: string }
+        app_build: { type: integer }
+        os_version: { type: string }
+        device_model: { type: string }
+        locale: { type: string }
+        timezone: { type: string }
 paths:
   /api/v1/health:
     get:
@@ -248,6 +262,29 @@ paths:
       summary: Create an agent (admin+)
       responses:
         "201": { description: created }
+  /api/v1/push/devices:
+    post:
+      security: [{ bearer: [] }]
+      summary: Upsert the caller's FCM device registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PushDevice" }
+      responses:
+        "200": { description: existing device updated }
+        "201": { description: device created }
+        "400": { description: invalid device_id, token or provider }
+  /api/v1/push/devices/{device_id}:
+    delete:
+      security: [{ bearer: [] }]
+      summary: Remove a device (owner, or admin in the same project)
+      parameters:
+        - { name: device_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: removed }
+        "403": { description: device belongs to another agent }
+        "404": { description: not found }
   /api/v1/routing-rules:
     get:
       security: [{ bearer: [] }]

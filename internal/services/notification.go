@@ -11,15 +11,16 @@ import (
 
 // Notification event names.
 const (
-	EventChatStarted       = "chat.started"
-	EventMessageReceived   = "message.received"
-	EventChatAssigned      = "chat.assigned"
-	EventChatResolved      = "chat.resolved"
-	EventTicketCreated     = "ticket.created"
-	EventCSATReceived      = "csat.received"
-	EventMessageSent       = "message.sent"
-	EventVisitorIdentified = "visitor.identified"
-	EventChannelFailed     = "channel.failed"
+	EventChatStarted          = "chat.started"
+	EventMessageReceived      = "message.received"
+	EventChatAssigned         = "chat.assigned"
+	EventChatResolved         = "chat.resolved"
+	EventConversationReopened = "chat.reopened"
+	EventTicketCreated        = "ticket.created"
+	EventCSATReceived         = "csat.received"
+	EventMessageSent          = "message.sent"
+	EventVisitorIdentified    = "visitor.identified"
+	EventChannelFailed        = "channel.failed"
 )
 
 // WebhookEvent describes one subscribable webhook event.

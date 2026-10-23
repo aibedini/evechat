@@ -11,6 +11,17 @@ Versioning: [SemVer](https://semver.org/).
 - Billing provider adapters (interface only today).
 - Realtime translation of agent messages.
 
+## [1.2.9] - 2026-10-23
+
+### Added
+- **FCM push for the Android agent app.** `POST /api/v1/push/devices` upserts
+  a device keyed by `device_id` (moving it to the calling agent on conflict),
+  and `DELETE /api/v1/push/devices/{device_id}` removes it; owners and project
+  admins are enforced. A `firebase.service_account_file`/`FIREBASE_*` service
+  account enables data-only FCM HTTP v1 notifications for visitor messages,
+  new conversations, assignments, resolves and reopens, with invalid tokens
+  deleted automatically. See `docs/PUSH.md`.
+
 ## [1.2.8] - 2026-10-20
 
 ### Added

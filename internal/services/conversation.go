@@ -141,24 +141,28 @@ func (s *ConversationService) Start(ctx context.Context, sess *models.VisitorSes
 
 	if s.notif != nil {
 		name := v.DisplayName()
+		data := map[string]any{
+			"visitor_name": name,
+			"device":       strDeref(v.DeviceType),
+			"os":           strDeref(v.OS),
+			"browser":      strDeref(v.Browser),
+			"page_url":     in.Page.URL,
+			"page_title":   in.Page.Title,
+			"message":      in.Message,
+			"telegram_id":  decision.TelegramID,
+			"phone":        decision.Phone,
+			"agent_id":     decision.AgentID,
+			"subscription": v.SubscriptionInfo,
+		}
+		if first != nil {
+			data["message_id"] = first.ID
+		}
 		s.notif.Enqueue(Event{
 			Name:           EventChatStarted,
 			ProjectID:      conv.ProjectID,
 			ConversationID: conv.ID,
 			VisitorID:      conv.VisitorID,
-			Data: map[string]any{
-				"visitor_name": name,
-				"device":       strDeref(v.DeviceType),
-				"os":           strDeref(v.OS),
-				"browser":      strDeref(v.Browser),
-				"page_url":     in.Page.URL,
-				"page_title":   in.Page.Title,
-				"message":      in.Message,
-				"telegram_id":  decision.TelegramID,
-				"phone":        decision.Phone,
-				"agent_id":     decision.AgentID,
-				"subscription": v.SubscriptionInfo,
-			},
+			Data:           data,
 		})
 	}
 
@@ -380,6 +384,14 @@ func (s *ConversationService) Reopen(ctx context.Context, convID string) error {
 		"conversation_id": convID,
 		"status":          models.StatusActive,
 	}))
+	if s.notif != nil {
+		s.notif.Enqueue(Event{
+			Name:           EventConversationReopened,
+			ProjectID:      conv.ProjectID,
+			ConversationID: convID,
+			VisitorID:      conv.VisitorID,
+		})
+	}
 	_, _ = s.msgs.SystemMessage(ctx, convID, i18n.ConversationReopened)
 	return nil
 }

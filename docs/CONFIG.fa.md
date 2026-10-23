@@ -66,7 +66,7 @@
 - `audit.retention_days=180`.
 - `log.level=info`، `log.pretty=false`، `log.file` خالی، `log.max_size_mb=50`، `log.max_backups=5`.
 
-## telegram / smtp / ai / integrations
+## telegram / smtp / firebase / ai / integrations
 
 ```yaml
 telegram:
@@ -83,6 +83,14 @@ smtp:
   from_name: "پشتیبانی EVE"
   tls_mode: "starttls"     # plain | starttls | implicit
 
+firebase:
+  enabled: true
+  # مسیر فایل JSON حساب سرویس (پیشنهادی):
+  service_account_file: "/opt/evechat/firebase-service-account.json"
+  # یا JSON یک‌خطی:
+  # service_account_json: '{"type":"service_account",...}'
+  # project_id: "my-firebase-project"   # اگر در JSON نیست
+
 ai:
   enabled: true
   model: "claude-haiku-4-5"
@@ -97,6 +105,8 @@ integrations:
   gmweb:
     base_url: "https://sms.example.ir"
 ```
+
+برای پوش FCM، `FIREBASE_SERVICE_ACCOUNT_FILE` (یا `FIREBASE_SERVICE_ACCOUNT_JSON`) و در صورت نیاز `FIREBASE_PROJECT_ID` را در `.env` بگذارید. جزئیات در [PUSH.md](PUSH.md).
 
 کلیدهای حساس در `.env` (mode 0600) قرار می‌گیرند و توسط `evechat setup` یا ویزارد وب مدیریت می‌شوند. اسرار یکپارچه‌سازی‌های ثبت‌شده در ویزارد وب، در `app_settings` **رمزنگاری‌شده** ذخیره می‌شوند و هنگام بالا آمدن روی YAML اعمال می‌گردند.
 

@@ -213,6 +213,11 @@ func New(d Deps) http.Handler {
 		r.Get("/visitors/{id}/export", wrap(d.H.ExportVisitor))
 		r.Post("/visitors/{id}/anonymize", wrap(d.H.AnonymizeVisitor))
 
+		// FCM registrations for the Android agent app. The JWT middleware above
+		// supplies the owning agent; the handler enforces device ownership.
+		r.Post("/push/devices", wrap(d.H.RegisterPushDevice))
+		r.Delete("/push/devices/{device_id}", wrap(d.H.DeletePushDevice))
+
 		r.Get("/agents", wrap(d.H.ListAgents))
 		r.Post("/agents", wrap(d.H.CreateAgent))
 		r.Get("/agents/{id}", wrap(d.H.GetAgent))

@@ -38,6 +38,19 @@ GET  /api/v1/auth/me         (Bearer)
 PUT  /api/v1/auth/password   {current_password, new_password}
 ```
 
+## Push devices (Android app)
+
+```
+POST   /api/v1/push/devices             {device_id, token, platform?, provider?, app_version?, app_build?, os_version?, device_model?, locale?, timezone?}
+DELETE /api/v1/push/devices/:device_id
+```
+
+`POST` returns `201` on first registration and `200` when the same `device_id`
+is updated; the device moves to the calling agent. `DELETE` returns `204`, or
+`404` when the device is unknown. The owner can delete their own device;
+`admin`/`superadmin` can delete any device in their project. FCM delivery is
+configured with a Firebase service account (`docs/PUSH.md`).
+
 ## Conversations
 
 ```

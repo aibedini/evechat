@@ -61,6 +61,14 @@ telegram:
   secret: ""
   enabled: false
 
+# FCM push for the Android agent app (optional). Prefer a file readable by the
+# evechat service user; FIREBASE_SERVICE_ACCOUNT_FILE overrides this path.
+firebase:
+  enabled: false
+  project_id: ""
+  service_account_file: ""
+  # service_account_json: '{"type":"service_account",...}'
+
 integrations:
   eve:
     base_url: ""

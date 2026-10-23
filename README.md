@@ -25,6 +25,7 @@ URL and the five-step web wizard finishes the setup.
 - **Widget:** vanilla TypeScript, Shadow DOM, WebSocket → SSE → long-poll fallback, IndexedDB outbox, 12.2 KB gzip (budget 16 KB), self-hosted Vazirmatn injected on first open.
 - **Dashboard:** React 18 + Vite + Tailwind, Persian RTL, Jalali dates, realtime inbox, visitors, tickets Kanban, knowledge base, audit/health/security settings, dark mode.
 - **Channels:** two-way webhooks with JSONPath input mapping, a retry ladder for outbound acks, a 48-hour scrubbed inspector and a curl generator (`docs/CHANNELS.fa.md`).
+- **Android push:** FCM HTTP v1 device registration (`POST/DELETE /api/v1/push/devices`) and data-only notifications for visitor messages, new conversations, assignments, resolves and reopens (`docs/PUSH.md`).
 - **Ops:** `evechat setup|doctor|backup|restore|update|key|user|project`, Prometheus metrics, proof-of-work abuse protection, SMTP + password reset, audit log, offline install bundle, multi-arch container image.
 - **Responsive:** one breakpoint scale (360/480/768/1024/1440) for the widget, dashboard and setup wizard; the widget handles the mobile keyboard with `visualViewport` (`docs/RESPONSIVE.md`). A `/wallboard` big screen sits behind a read-only token (`docs/WALLBOARD.fa.md`), and local-only demo pages live under `/demo*` (`docs/DEMO.fa.md`).
 - **Tests:** `go test ./...` plus 46 Playwright tests (behaviour, responsive, demo) in `web/e2e` that run in CI (`docs/E2E.md`).
@@ -88,6 +89,7 @@ wins. Examples: [deploy/nginx](deploy/nginx/evechat.conf),
 - [docs/WIDGET.md](docs/WIDGET.md) — JS API and events
 - [docs/ROUTING.fa.md](docs/ROUTING.fa.md) — rule cookbook
 - [docs/TELEGRAM.fa.md](docs/TELEGRAM.fa.md) — bot setup
+- [docs/PUSH.md](docs/PUSH.md) — FCM push for the Android agent app
 - [docs/UPGRADE.md](docs/UPGRADE.md) and [docs/RELEASING.md](docs/RELEASING.md)
 - [docs/AUDIT.md](docs/AUDIT.md), [docs/MONITORING.md](docs/MONITORING.md), [docs/EMAIL.md](docs/EMAIL.md)
 - [docs/OFFLINE.md](docs/OFFLINE.md), [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md), [docs/SECURITY-HARDENING.md](docs/SECURITY-HARDENING.md)

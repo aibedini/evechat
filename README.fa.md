@@ -22,7 +22,7 @@ EveChat برای تیم‌های پشتیبانی فارسی طراحی شده �
 
 تصاویر بیشتر در [docs/screenshots](docs/screenshots)؛ برای بازتولید: `node scripts/screenshots.mjs`.
 
-**تازه در ۱.۲.۰:**
+**تازه در نسخه‌های اخیر:**
 
 - **کانال‌ها (وبهوک دوطرفه):** دریافت پیام از CRM/تلگرام/درگاه پیامک با نگاشت
   JSONPath، ده گام پردازش، نردبان retry برای خروجی و بازرس ۴۸ ساعته —
@@ -34,6 +34,9 @@ EveChat برای تیم‌های پشتیبانی فارسی طراحی شده �
   بدون محتوای پیام — [docs/WALLBOARD.fa.md](docs/WALLBOARD.fa.md).
 - **صفحه‌های دمو:** `/demo`، `/demo/split`، `/demo/devices`، `/demo/events`
   (فقط لوکال) — [docs/DEMO.fa.md](docs/DEMO.fa.md).
+- **پوش اندروید (FCM):** ثبت دستگاه با `POST/DELETE /api/v1/push/devices` و
+  اعلان data-only برای پیام بازدیدکننده، گفتگوی جدید، ارجاع، بستن و بازگشایی —
+  [docs/PUSH.md](docs/PUSH.md).
 
 ---
 

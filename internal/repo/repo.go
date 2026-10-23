@@ -37,6 +37,7 @@ type Repo struct {
 	Settings      *SettingsRepo
 	Audit         *AuditRepo
 	Channels      *ChannelRepo
+	Push          *PushRepo
 }
 
 // New wires every sub-repository against one database handle.
@@ -59,6 +60,7 @@ func New(d *db.DB) *Repo {
 		Settings:      &SettingsRepo{db: d},
 		Audit:         &AuditRepo{db: d},
 		Channels:      &ChannelRepo{db: d},
+		Push:          &PushRepo{db: d},
 	}
 }
 

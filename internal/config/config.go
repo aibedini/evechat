@@ -114,7 +114,8 @@ type Config struct {
 		GMweb GMwebConfig `koanf:"gmweb"`
 	} `koanf:"integrations"`
 
-	SMTP SMTPConfig `koanf:"smtp"`
+	SMTP     SMTPConfig     `koanf:"smtp"`
+	Firebase FirebaseConfig `koanf:"firebase"`
 
 	AI struct {
 		Enabled      bool   `koanf:"enabled"`
@@ -146,6 +147,19 @@ type GMwebConfig struct {
 	BaseURL       string `koanf:"base_url"`
 	APIKey        string `koanf:"api_key"`
 	WebhookSecret string `koanf:"webhook_secret"`
+}
+
+// FirebaseConfig enables FCM push for the Android agent app. The service
+// account JSON is secret; keep it in a file or in FIREBASE_SERVICE_ACCOUNT_JSON
+// outside the repository. Push stays optional: without credentials the
+// registration endpoints still work and notifications are skipped.
+type FirebaseConfig struct {
+	Enabled            bool   `koanf:"enabled"`
+	ProjectID          string `koanf:"project_id"`
+	ServiceAccountJSON string `koanf:"service_account_json"`
+	ServiceAccountFile string `koanf:"service_account_file"`
+	BaseURL            string `koanf:"base_url"`
+	TokenURL           string `koanf:"token_url"`
 }
 
 // SMTPConfig configures the email notification channel.
@@ -208,6 +222,8 @@ func defaults() *Config {
 	c.SMTP.TLSMode = "starttls"
 	c.SMTP.Timeout = "10s"
 	c.SMTP.FromName = "EveChat"
+
+	// Push is opt-in; credentials come from FIREBASE_* or firebase.* config.
 
 	c.AI.Model = "claude-haiku-4-5"
 	c.AI.MaxTokens = 512

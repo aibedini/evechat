@@ -23,6 +23,7 @@ import (
 	"github.com/evechat/evechat/internal/hub"
 	"github.com/evechat/evechat/internal/id"
 	"github.com/evechat/evechat/internal/integrations/eve"
+	"github.com/evechat/evechat/internal/integrations/fcm"
 	"github.com/evechat/evechat/internal/integrations/gmweb"
 	"github.com/evechat/evechat/internal/integrations/smtp"
 	"github.com/evechat/evechat/internal/integrations/telegram"
@@ -55,6 +56,7 @@ func runServe(args []string) {
 	if err != nil {
 		fatalf("%v", err)
 	}
+	applyFirebaseEnv(cfg)
 	if *showVersion {
 		fmt.Println(versionString())
 		return
@@ -194,6 +196,25 @@ func serve(cfg *config.Config, cfgPath string, migrateOnly, seed bool, log *zero
 	gmwebClient := gmweb.New(cfg.Integrations.GMweb.BaseURL, cfg.Integrations.GMweb.APIKey)
 	smsChannel := services.NewSMSChannel(gmwebClient, r, msgs, *log)
 	notif.Register(smsChannel)
+
+	// FCM push for the Android agent app. Missing/invalid credentials disable
+	// delivery only; device registration stays available so the app can retry
+	// after the operator fixes the service account.
+	if cfg.Firebase.Enabled {
+		sender, ferr := fcm.New(fcm.Config{
+			ProjectID:          cfg.Firebase.ProjectID,
+			ServiceAccountJSON: cfg.Firebase.ServiceAccountJSON,
+			ServiceAccountFile: cfg.Firebase.ServiceAccountFile,
+			BaseURL:            cfg.Firebase.BaseURL,
+			TokenURL:           cfg.Firebase.TokenURL,
+		})
+		if ferr != nil {
+			log.Warn().Err(ferr).Msg("FCM push disabled")
+		} else {
+			notif.Register(services.NewPushChannel(sender, r, *log))
+			log.Info().Str("project_id", sender.ProjectID()).Msg("FCM push enabled")
+		}
+	}
 
 	var tgBot *telegram.Bot
 	if cfg.Telegram.Enabled && cfg.Telegram.BotToken != "" {
@@ -472,6 +493,12 @@ func janitor(ctx context.Context, r *repo.Repo, cfg *config.Config, log zerolog.
 			}
 			if _, err := r.Agents.PurgeResetTokens(ctx); err != nil {
 				log.Warn().Err(err).Msg("reset token purge failed")
+			}
+			cutoffPush := time.Now().UTC().AddDate(0, 0, -60)
+			if pruned, err := r.Push.PruneStale(ctx, cutoffPush); err != nil {
+				log.Warn().Err(err).Msg("push device prune failed")
+			} else if pruned > 0 {
+				log.Debug().Int64("pruned", pruned).Msg("stale push devices pruned")
 			}
 			cutoff := time.Now().UTC().AddDate(0, 0, -retention).Format("2006-01-02 15:04:05")
 			if pruned, err := r.Audit.Prune(ctx, cutoff); err != nil {
